@@ -2,7 +2,7 @@ from gym.envs.registration import register
 from ray.tune.registry import register_env
 
 from .envs import *
-
+from .experimental_agents import MyRLAgent
 
 # REGISTER ENVS FOR GYM USE
 
