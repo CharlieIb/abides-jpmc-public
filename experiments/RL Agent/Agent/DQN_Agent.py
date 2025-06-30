@@ -184,7 +184,7 @@ if __name__ == "__main__":
     env.seed(0)
 
     # Instantiate your RL agent
-    agent = MyRLAgent(env.observation_space, env.action_space)
+    agent = DQNAgent(env.observation_space, env.action_space)
 
     num_episodes = 3  # Let's run a few episodes
 
