@@ -126,7 +126,7 @@ class DQNAgent():
 
         # 5. Compute Q-values for current states (Q(s,a)) using the Policy Network
         # 'self.policy_net(states)' outputs Q-values for all actions for each state in the batch.
-        # '.gather(1, actions)' selects the Q-value specfically for the 'action' that was actually taken.
+        # '.gather(1, actions)' selects the Q-value specifically for the 'action' that was actually taken.
         # Example: if actions is [[0], [2], [1]], it picks the Q-value for action 0 from row 0, action 2 from row 1, etc.
         q_values = self.policy_net(states).gather(1, actions)
 
@@ -177,8 +177,11 @@ if __name__ == "__main__":
     env = gym.make(
         "markets-daily_investor-v0",
         background_config="rmsc04",
-        # You might also want to pass env_config for timestep duration etc.
-        # env_config={'TIMESTEP_DURATION': {'seconds': 60}}
+        # Env config - alter it
+        env_config={
+            'ORDER_FIXED_SIZE': 100, # default size of market orders for BUY/SELL actions
+            'TIMESTEP_DURATION': {'seconds': 60} # Agent wakes up every minute
+        }
     )
 
     env.seed(0)
