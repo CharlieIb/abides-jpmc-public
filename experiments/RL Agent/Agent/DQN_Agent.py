@@ -186,13 +186,40 @@ if __name__ == "__main__":
 
     env.seed(0)
 
-    # Instantiate your RL agent
-    agent = DQNAgent(env.observation_space, env.action_space)
 
-    num_episodes = 3  # Let's run a few episodes
+    # Instantiate the RL-DQN agent
+    # Get the shape of the observation space (e.g. (7,)) and number of actions (e.g. ,3)
+    observation_dim = int(np.prod(env.observation_space.shape))
+    action_dim = env.action_space.n
+
+    agent = DQNAgent(
+        observation_space=env.observation_space,
+        action_space=env.action_space,
+        learning_rate=1e-3,
+        discount_factor=1,
+        exploration_start=1.0,
+        exploration_end=0.02,
+        exploration_decay_steps=10000, # Tune as needed
+        replay_buffer_size=10000,
+        batch_size=32,
+        target_update_freq=100,
+    )
+
+
+    # Training Loop Parameters
+    num_episodes = 50  # Tune as needed
+
+    # Track total steps for exploration decay (if using a global decay schedule)
+    total_steps = 0
+
+
+    # Episode Interation
 
     for episode in range(num_episodes):
         print(f"\n--- Starting Episode {episode + 1} ---")
+
+        # Reset Environment for a New Episode
+        # Expecting 1 return value for Gym 0.21.0 - 0.25.x
         state = env.reset()  # Start a new episode
         done = False
         episode_reward = 0
@@ -201,26 +228,32 @@ if __name__ == "__main__":
         # Loop until the episode is done (market close or other termination)
         # The tqdm will track steps within one episode or over total steps if you change the range
         # Here, it's tracking steps within an episode.
-        while not done:
-            # 1. Agent chooses an action based on the current state
-            action = agent.choose_action(state)
+        with tqdm(total=None, desc=f"Episode {episode+1}", unit="steps") as pbar:
+            while not done:
+                # 1. Agent chooses an action based on the current state
+                action = agent.choose_action(state)
 
-            # 2. Environment takes a step with the chosen action
-            # Note: For Gym v0.26.0+, env.step returns (observation, reward, terminated, truncated, info)
-            new_state, reward, done, info = env.step(action)
-            print(f"New state: {state}, Reward: {reward}, Action: {action}, Done: {done}, Info: {info}")
-            # 3. Agent learns from the experience
-            agent.update_policy(state, action, reward, new_state, done)
+                # 2. Environment takes a step with the chosen action
+                # For Gym v0.21.0 - 0.25.x, env.step returns (obs, reward, done, info)
+                # Note: For Gym v0.26.0+, env.step returns (observation, reward, terminated, truncated, info)
+                new_state, reward, done, info = env.step(action)
 
-            # Update current state and episode reward
-            state = new_state
-            episode_reward += reward
-            step_count += 1
+                # 3. Agent learns from the experience
+                agent.update_policy(state, action, reward, new_state, done)
 
-            # Optional: Add a break condition if the episode runs too long for testing
-            if step_count > 500:  # Example: max 500 steps per episode for quick testing
-                print("Episode truncated due to max steps for testing.")
-                break
+                # Update current state and episode reward
+                state = new_state
+                episode_reward += reward
+                step_count += 1
+                total_steps += 1 # Global step counter for exploration/logging
+
+                pbar.update(1) # Update tqdm progress bar
+
+                # Optional: Add a break condition if the episode runs too long for testing
+                if step_count > 1000:  # Example: max 500 steps per episode for quick testing
+                    print("Episode truncated due to max steps for testing.")
+                    done = True # Force done if this happens to exit loop
+                    break
 
         print(f"Episode {episode + 1} finished after {step_count} steps. Total Reward: {episode_reward:.2f}")
 
