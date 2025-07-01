@@ -82,6 +82,8 @@ class DQNAgent():
                 # .unsqueeze(0) adds a batch dimension (e.g., from (7,) to (1,7))
                 # Neural networks in PyTorch typically expect batched inputs.
                 state_tensor = torch.from_numpy(state).float().unsqueeze(0)
+                # To squeeze the last dimension if it is (7, 1)
+                state_tensor = state_tensor.squeeze(-1)
                 # 2. Get Q-values from the policy network
                 # The network outputs Q-values for all possible actions for the given state
                 q_values = self.policy_net(state_tensor)
@@ -117,11 +119,14 @@ class DQNAgent():
         # 4. Convert lists of NumPy arrays/scalars to PyTorch Tensors
         # These will be the inputs for the neural network.
         states = torch.from_numpy(np.array(states)).float()
+        # Squeeze the states if the output is (batch_size, 7, 1)
+        states = states.squeeze(-1)
         # actions need to be Long (integer) type and unsqueezed for gather operation
         actions = torch.tensor(np.array(actions)).long().unsqueeze(1)
         # rewards and dones need to be float and unsqueezed for element-wise operations
         rewards = torch.tensor(rewards).float().unsqueeze(1)
         next_states = torch.from_numpy(np.array(next_states)).float()
+        next_states = next_states.squeeze(-1)
         dones = torch.tensor(dones).float().unsqueeze(1) # 'done' is boolean, convert to 0.0 or 1.0
 
         # 5. Compute Q-values for current states (Q(s,a)) using the Policy Network
@@ -205,7 +210,7 @@ if __name__ == "__main__":
 
 
     # Training Loop Parameters
-    num_episodes = 50  # Tune as needed
+    num_episodes = 2  # Tune as needed (Actual: 50, Testing: 2)
 
     # Track total steps for exploration decay (if using a global decay schedule)
     total_steps = 0
@@ -248,7 +253,7 @@ if __name__ == "__main__":
                 pbar.update(1) # Update tqdm progress bar
 
                 # Optional: Add a break condition if the episode runs too long for testing
-                if step_count > 1000:  # Example: max 500 steps per episode for quick testing
+                if step_count > 500:  # Example: max 500 steps per episode for quick testing
                     print("Episode truncated due to max steps for testing.")
                     done = True # Force done if this happens to exit loop
                     break
