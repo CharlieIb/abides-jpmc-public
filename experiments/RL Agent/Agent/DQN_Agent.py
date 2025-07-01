@@ -178,10 +178,8 @@ if __name__ == "__main__":
         "markets-daily_investor-v0",
         background_config="rmsc04",
         # Env config - alter it
-        env_config={
-            'ORDER_FIXED_SIZE': 100, # default size of market orders for BUY/SELL actions
-            'TIMESTEP_DURATION': {'seconds': 60} # Agent wakes up every minute
-        }
+        order_fixed_size=100, # default size of market orders for BUY/SELL actions
+        timestep_duration='60s' # Agent wakes up every minute
     )
 
     env.seed(0)
