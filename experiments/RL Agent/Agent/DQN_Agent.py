@@ -184,7 +184,8 @@ if __name__ == "__main__":
         background_config="rmsc04",
         # Env config - alter it
         order_fixed_size=100, # default size of market orders for BUY/SELL actions
-        timestep_duration='60s' # Agent wakes up every minute
+        timestep_duration='60s', # Agent wakes up every minute
+        mkt_close="16:00:00" # alter as needed
     )
 
     env.seed(0)
