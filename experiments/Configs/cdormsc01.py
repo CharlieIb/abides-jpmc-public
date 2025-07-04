@@ -1,4 +1,5 @@
-# RMSC-4 (Reference Market Simulation Configuration):
+# cdormsc01 (Cryptocurrency Data Oracle Reference Market Simulation Configuration 01)
+# - X     Data Oracle
 # - 1     Exchange Agent
 # - 2     Adaptive Market Maker Agents
 # - 102   Value Agents
@@ -20,7 +21,7 @@ from abides_markets.agents import (
     MomentumAgent,
 )
 from abides_markets.models import OrderSizeModel
-from abides_markets.oracles import SparseMeanRevertingOracle
+from experiments.Oracle import DataOracle
 from abides_markets.utils import generate_latency_model
 
 
@@ -33,7 +34,7 @@ def build_config(
     date="20210205",
     end_time="10:00:00",
     stdout_log_level="INFO",
-    ticker="ABM",
+    ticker="BTC/USDT",
     starting_cash=10_000_000,  # Cash in this simulator is always in CENTS.
     log_orders=True,  # if True log everything
     # 1) Exchange Agent
@@ -48,13 +49,13 @@ def build_config(
     r_bar=100_000,  # true mean fundamental value
     kappa=1.67e-15,  # Value Agents appraisal of mean-reversion
     lambda_a=5.7e-12,  # ValueAgent arrival rate
-    # oracle
-    kappa_oracle=1.67e-16,  # Mean-reversion of fundamental time series.
-    sigma_s=0,
-    fund_vol=5e-5,  # Volatility of fundamental time series (std).
-    megashock_lambda_a=2.77778e-18,
-    megashock_mean=1000,
-    megashock_var=50_000,
+    # oracle - commented out
+    # kappa_oracle=1.67e-16,  # Mean-reversion of fundamental time series.
+    # sigma_s=0,
+    # fund_vol=5e-5,  # Volatility of fundamental time series (std).
+    # megashock_lambda_a=2.77778e-18,
+    # megashock_mean=1000,
+    # megashock_var=50_000,
     # 4) Market Maker Agents
     # each elem of mm_params is tuple (window_size, pov, num_ticks, wake_up_freq, min_order_size)
     mm_window_size="adaptive",
@@ -119,7 +120,9 @@ def build_config(
     NOISE_MKT_OPEN = MKT_OPEN - str_to_ns("00:30:00")
     NOISE_MKT_CLOSE = DATE + str_to_ns("16:00:00")
 
-    # oracle
+    # Oracles
+    # Sparse Mean Reverting Oracle
+    '''
     symbols = {
         ticker: {
             "r_bar": r_bar,
@@ -136,6 +139,15 @@ def build_config(
     }
 
     oracle = SparseMeanRevertingOracle(MKT_OPEN, NOISE_MKT_CLOSE, symbols)
+    '''
+    # Data Oracle
+
+    symbols = {
+        ticker: {
+            'fundamental_file_path': '/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/experiments/Data/',
+        }
+    }
+    oracle = DataOracle(symbols)
 
     # Agent configuration
     agent_count, agents, agent_types = 0, [], []
