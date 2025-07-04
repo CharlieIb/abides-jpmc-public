@@ -39,8 +39,7 @@ if __name__ == "__main__":
     env = gym.make(
         "markets-daily_investor-v0",
         background_config="rmsc04",
-        # You might also want to pass env_config for timestep duration etc.
-        # env_config={'TIMESTEP_DURATION': {'seconds': 60}}
+        timestep_duration='60s'
     )
 
     env.seed(0)
@@ -67,7 +66,7 @@ if __name__ == "__main__":
             # 2. Environment takes a step with the chosen action
             # Note: For Gym v0.26.0+, env.step returns (observation, reward, terminated, truncated, info)
             new_state, reward, done, info = env.step(action)
-            print(f"New state: {state}, Reward: {reward}, Action: {action}, Done: {done}, Info: {info}")
+
             # 3. Agent learns from the experience
             agent.update_policy(state, action, reward, new_state, done)
 
