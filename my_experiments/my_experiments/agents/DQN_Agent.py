@@ -30,7 +30,7 @@ class DQN(nn.Module):
         return self.fc3(x)
 
 
-# --- RL Agent Class (DQN) ---
+# --- RL_Agent Class (DQN) ---
 class DQNAgent():
     def __init__(self, observation_space, action_space,
                  learning_rate = 1e-3, discount_factor = 1.0,

@@ -73,12 +73,11 @@ class DataOracle(Oracle):
         Returns:
             A pandas Series with timestamps as the index and prices as the values.
         """
-        df = pd.read_csv(file_path, index_col='Timestamp', parse_dates=True)
-        if 'Price' not in df.columns:
+        df = pd.read_csv(file_path, index_col='TIMESTAMP', parse_dates=True)
+        if 'PRICE' not in df.columns:
             raise ValueError("The data file must contain a 'Price' column.")
 
-        # Ensure the prices are in integer cents.
-        return (df['Price'] * 100).astype(int)
+        return (df['PRICE']).astype(int)
 
     def get_daily_open_price(
             self, symbol: str, mkt_open: NanosecondTime, cents: bool = True
@@ -88,15 +87,24 @@ class DataOracle(Oracle):
 
         This will be the first price at or after the market open time.
         """
+
         if symbol not in self.price_data:
             raise ValueError(f"Unknown symbol: {symbol}")
 
         # Find the price at the market open time.
         try:
-            open_price = self.price_data[symbol].asof(mkt_open)
+            query_time_ns = pd.to_datetime(mkt_open)
+
+            # Floor to nearest second (last available price at or before)
+            query_time_sec = query_time_ns.floor('S')
+            open_price = self.price_data[symbol].asof(query_time_sec)
+
         except KeyError:
             logger.warning(f"No opening price found for {symbol} at {mkt_open}. Returning first available price.")
             open_price = self.price_data[symbol].iloc[0]
+        #
+        # if pd.isna(open_price):
+        #     open_price = self.price_data[symbol].iloc[0]  # fallback to first available
 
         logger.debug(f"Oracle: client requested {symbol} at market open: {mkt_open}")
         logger.debug(f"Oracle: market open price was {open_price}")
@@ -104,36 +112,38 @@ class DataOracle(Oracle):
         return open_price
 
     def observe_price(
-            self,
-            symbol: str,
-            current_time: NanosecondTime,
-            random_state: Optional[np.random.RandomState] = None,
+        self,
+        symbol: str,
+        current_time: int,  # nanosecond timestamp (numpy.int64)
+        random_state: np.random.RandomState,
+        sigma_n: int = 1000,
     ) -> int:
-        """
-        Return the historical price at the given time.
+        price_series = self.price_data[symbol]
 
-        Args:
-            symbol: The symbol to observe.
-            current_time: The current simulation time.
-            random_state: Not used by this oracle, maintained for compatibility.
+        if current_time < self.mkt_open:
+            logger.warning(
+                f"Oracle: attempted to observe {symbol} before start_time ({current_time} < {self.mkt_open})")
+            return self.get_daily_open_price(symbol)
 
-        Returns:
-            The price of the symbol at the given time.
-        """
-        if symbol not in self.price_data:
-            raise ValueError(f"Unknown symbol: {symbol}")
+        # Convert current_time to pd.Timestamp for comparison
+        current_ts = pd.Timestamp(current_time)
 
-        # If the request is made after market close, return the last price.
-        if current_time >= self.mkt_close:
-            price_at_time = self.price_data[symbol].asof(self.mkt_close - pd.Timedelta(nanoseconds=1))
+        if current_ts < price_series.index[0]:
+            price_at_time = price_series.iloc[0]
+            logger.warning(f"Requested time {current_ts} before first price; using first price {price_at_time}")
+        elif current_ts > price_series.index[-1]:
+            price_at_time = price_series.iloc[-1]
+            logger.warning(f"Requested time {current_ts} after last price; using last price {price_at_time}")
         else:
-            price_at_time = self.price_data[symbol].asof(current_time)
+            price_at_time = price_series.asof(current_ts)
+            if pd.isna(price_at_time):
+                logger.warning(f"No price found at {current_ts} via asof; using last known price")
+                price_at_time = price_series.iloc[-1]
 
-        if pd.isna(price_at_time):
-            logger.warning(f"No price observation found for {symbol} at {current_time}. Returning last known price.")
-            # Fallback to the last known price if no price is found at the current time.
-            price_at_time = self.price_data[symbol].iloc[-1]
+        if sigma_n == 0:
+            observed_price = int(price_at_time)
+        else:
+            observed_price = int(round(random_state.normal(loc=price_at_time, scale=np.sqrt(sigma_n))))
 
-        logger.debug(f"Oracle: current historical price is {price_at_time} at {current_time}")
-
-        return int(price_at_time)
+        logger.debug(f"Oracle: observed price for {symbol} at {current_ts} is {observed_price}")
+        return observed_price

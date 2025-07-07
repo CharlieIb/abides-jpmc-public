@@ -21,7 +21,7 @@ from abides_markets.agents import (
     MomentumAgent,
 )
 from abides_markets.models import OrderSizeModel
-from experiments.Oracle import DataOracle
+from oracle import DataOracle
 from abides_markets.utils import generate_latency_model
 
 
@@ -31,10 +31,10 @@ from abides_markets.utils import generate_latency_model
 
 def build_config(
     seed=int(datetime.now().timestamp() * 1_000_000) % (2**32 - 1),
-    date="20210205",
+    date="20250611",
     end_time="10:00:00",
     stdout_log_level="INFO",
-    ticker="BTC/USDT",
+    ticker="ABM",
     starting_cash=10_000_000,  # Cash in this simulator is always in CENTS.
     log_orders=True,  # if True log everything
     # 1) Exchange Agent
@@ -117,7 +117,7 @@ def build_config(
     MKT_OPEN = DATE + str_to_ns("09:30:00")
     MKT_CLOSE = DATE + str_to_ns(end_time)
     # These times needed for distribution of arrival times of Noise Agents
-    NOISE_MKT_OPEN = MKT_OPEN - str_to_ns("00:30:00")
+    NOISE_MKT_OPEN = MKT_OPEN
     NOISE_MKT_CLOSE = DATE + str_to_ns("16:00:00")
 
     # Oracles
@@ -144,10 +144,10 @@ def build_config(
 
     symbols = {
         ticker: {
-            'fundamental_file_path': '/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/experiments/Data/',
+            'data_file': '/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/my_experiments/gym_crypto_markets/data/Train/BTCUSDT-trades-2025-06-11-1s.csv',
         }
     }
-    oracle = DataOracle(symbols)
+    oracle = DataOracle(MKT_OPEN, NOISE_MKT_CLOSE, symbols)
 
     # Agent configuration
     agent_count, agents, agent_types = 0, [], []

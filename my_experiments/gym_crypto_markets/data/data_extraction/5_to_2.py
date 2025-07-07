@@ -6,22 +6,34 @@ def process_trade_data(input_file: str, output_file: str, freq: str):
     Processes raw trade data into a fixed-interval price series.
     """
     print(f"Loading raw trade data from {input_file}...")
-    df = pd.read_csv(input_file, parse_dates=['TIMESTAMP'])
+    df = pd.read_csv(input_file)
+    if 'TIMESTAMP' in df.columns:
+        df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'], unit='ns')
+    else:
+        raise ValueError("TIMESTAMP column not found in input CSV.")
+
     df.set_index('TIMESTAMP', inplace=True)
 
     print(f"Resampling data to '{freq}' frequency...")
-    # Resample the data and get the last price in each interval
     price_series = df['PRICE'].resample(freq).last()
 
+    # Check for gaps after resampling but before forward-fill
+    full_index = pd.date_range(start=price_series.index.min(), end=price_series.index.max(), freq=freq)
+    missing_timestamps = full_index.difference(price_series.index)
+
+    if missing_timestamps.empty:
+        print("No missing timestamps after resampling.")
+    else:
+        print(f"Warning: Missing timestamps detected: {len(missing_timestamps)}")
+        print(missing_timestamps)
+
     print("Forward-filling missing values...")
-    # Forward-fill any empty intervals
     price_series = price_series.ffill()
     price_series.dropna(inplace=True)
 
     print(f"Saving processed data to {output_file}...")
     price_series.to_csv(output_file, header=True)
     print("Processing complete.")
-
 # --- Main execution block ---
 if __name__ == '__main__':
     # 1. Set up the argument parser
