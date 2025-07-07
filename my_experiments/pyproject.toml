@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+
+[project]
+name = "my_experiments"
+version = "0.1.0"
+authors = [
+    { name = "Charles Ibbett", email = "cibbett325@gmail.com" },
+]
+description = "Custom experiments for the trading project."
+
+# This is the crucial part
+dependencies = [
+    "gym-crypto-markets",
+    "abides-core",      # Use the PyPI names of your packages
+    "abides-gym",
+    "abides-markets",
+]
+
+[tool.setuptools]
+packages = ["my_experiments"]
+
+[project.optional-dependencies]
+dev = ["pytest", "black"]
