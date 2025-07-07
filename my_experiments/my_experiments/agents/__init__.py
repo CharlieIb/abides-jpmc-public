@@ -1,3 +1,3 @@
-from .RL_Agent import MyRLAgent
-from .MeanReversion import MeanReversionAgent
-from .DQN_Agent import DQNAgent
+from .rl_base import MyRLAgent
+from .base_mr import MeanReversionAgent
+from .rl_dqn_01 import DQNAgent
