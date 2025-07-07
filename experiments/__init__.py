@@ -1,2 +1,0 @@
-from Oracle import DataOracle
-
