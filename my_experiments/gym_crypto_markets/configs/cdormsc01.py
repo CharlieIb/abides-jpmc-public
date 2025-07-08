@@ -45,11 +45,11 @@ def build_config(
     # 2) Noise Agent
     num_noise_agents=1000,
     # 3) Value Agents
-    num_value_agents=102,
+    num_value_agents=50,
     r_bar=100_000,  # true mean fundamental value
     kappa=1.67e-15,  # Value Agents appraisal of mean-reversion
     lambda_a=5.7e-12,  # ValueAgent arrival rate
-    # oracle - commented out
+    # oracle - commented out as using data oracle
     # kappa_oracle=1.67e-16,  # Mean-reversion of fundamental time series.
     # sigma_s=0,
     # fund_vol=5e-5,  # Volatility of fundamental time series (std).
@@ -70,7 +70,7 @@ def build_config(
     mm_backstop_quantity=0,
     mm_cancel_limit_delay=50,  # 50 nanoseconds
     # 5) Momentum Agents
-    num_momentum_agents=12,
+    num_momentum_agents=25,
 ):
     """
     create the background configuration for rmsc04
