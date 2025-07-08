@@ -144,7 +144,7 @@ def build_config(
 
     symbols = {
         ticker: {
-            'data_file': '/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/my_experiments/gym_crypto_markets/data/Train/BTCUSDT-trades-2025-06-11-1s.csv',
+            'data_file': '/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/my_experiments/gym_crypto_markets/data/test/BTCUSDT-trades-2025-06-11-1s.csv',
         }
     }
     oracle = DataOracle(MKT_OPEN, NOISE_MKT_CLOSE, symbols)
