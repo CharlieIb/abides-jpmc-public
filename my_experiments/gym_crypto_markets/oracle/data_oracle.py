@@ -123,7 +123,7 @@ class DataOracle(Oracle):
         if current_time < self.mkt_open:
             logger.warning(
                 f"Oracle: attempted to observe {symbol} before start_time ({current_time} < {self.mkt_open})")
-            return self.get_daily_open_price(symbol)
+            return self.get_daily_open_price(symbol, self.mkt_open)
 
         # Convert current_time to pd.Timestamp for comparison
         current_ts = pd.Timestamp(current_time)
