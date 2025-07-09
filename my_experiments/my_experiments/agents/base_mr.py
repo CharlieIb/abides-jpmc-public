@@ -135,9 +135,9 @@ class MeanReversionAgent:
                 if current_cash >= cost_to_buy:
                     action = 0  # Action: BUY (action ID 0 for BUY in ABIDES)
                     self.position = 1  # Mark that we are now long
-                    print(f"  MR Agent: BUY signal! Price {current_price:.2f} <= LB {current_lb:.2f}. Cash: {current_cash:.2f}. Cost: {cost_to_buy:.2f}")
-                else:
-                    print(f"  MR Agent: BUY signal, but insufficient cash ({current_cash:.2f}) for cost {cost_to_buy:.2f}.")
+                    # print(f"  MR Agent: BUY signal! Price {current_price:.2f} <= LB {current_lb:.2f}. Cash: {current_cash:.2f}. Cost: {cost_to_buy:.2f}")
+                # else:
+                    # print(f"  MR Agent: BUY signal, but insufficient cash ({current_cash:.2f}) for cost {cost_to_buy:.2f}.")
 
 
         elif self.position == 1:  # Agent is currently long (holding shares)
@@ -146,9 +146,9 @@ class MeanReversionAgent:
                 if current_holdings > 0:  # Ensure we actually have shares to sell
                     action = 2  # Action: SELL (close entire position) (action ID 2 for SELL in ABIDES)
                     self.position = 0  # Mark that we are now flat
-                    print(f"  MR Agent: SELL signal (close long)! Price {current_price:.2f} >= MB {current_mb:.2f}. Holdings: {current_holdings:.2f}.")
-                else:
-                    print(f"  MR Agent: SELL signal, but no holdings to sell.")
+                    # print(f"  MR Agent: SELL signal (close long)! Price {current_price:.2f} >= MB {current_mb:.2f}. Holdings: {current_holdings:.2f}.")
+                # else:
+                    # print(f"  MR Agent: SELL signal, but no holdings to sell.")
 
         return action
 
@@ -164,7 +164,7 @@ class MeanReversionAgent:
         """Resets the agent's internal state for a new episode."""
         self.price_history = []
         self.position = 0
-        self.initial_cash = 10000000000
+        self.initial_cash = 1000000
 
 
 
