@@ -17,7 +17,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v01(AbidesGymMarketsEnv):
     Crypto Daily Investor V01 environnement. It defines one of the ABIDES-Gym-markets environnement.
     This environment presents an example of the classic problem where an investor tries to make money buying and selling a stock through-out a single day.
     The investor starts the day with cash but no position then repeatedly buy and sell the stock in order to maximize its
-    marked to market value at the end of the day (i.e. cash plus holdingsvalued at the market price).
+    marked to market value at the end of the day (i.e. cash plus holdings valued at the market price).
 
     Arguments:
         - background_config: the handcrafted agents configuration used for the environnement
@@ -53,9 +53,9 @@ class SubGymMarketsCryptoDailyInvestorEnv_v01(AbidesGymMarketsEnv):
     def __init__(
         self,
         background_config: str = "cdormsc01",
-        mkt_close: str = "16:00:00",
+        mkt_close: str = "23:59:59",
         timestep_duration: str = "60s",
-        starting_cash: int = 10_000_000_000,
+        starting_cash: int = 1_000_000,
         order_fixed_size: int = 10,
         state_history_length: int = 4,
         market_data_buffer_length: int = 5,
@@ -63,7 +63,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v01(AbidesGymMarketsEnv):
         reward_mode: str = "dense",
         done_ratio: float = 0.3,
         debug_mode: bool = False,
-        background_config_extra_kvargs={},
+        background_config_extra_kvargs={}
     ) -> None:
         self.background_config: Any = importlib.import_module(
             "gym_crypto_markets.configs.{}".format(background_config), package=None)
@@ -90,8 +90,8 @@ class SubGymMarketsCryptoDailyInvestorEnv_v01(AbidesGymMarketsEnv):
             self.first_interval >= str_to_ns("00:00:00")
         ), "Select authorized FIRST_INTERVAL delay"
 
-        assert (self.mkt_close <= str_to_ns("16:00:00")) & (
-            self.mkt_close >= str_to_ns("09:30:00")
+        assert (self.mkt_close <= str_to_ns("23:59:59")) & (
+            self.mkt_close >= str_to_ns("00:00:00")
         ), "Select authorized market hours"
 
         assert reward_mode in [
@@ -132,6 +132,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v01(AbidesGymMarketsEnv):
 
         background_config_args = {"end_time": self.mkt_close}
         background_config_args.update(background_config_extra_kvargs)
+
         super().__init__(
             background_config_pair=(
                 self.background_config.build_config,
