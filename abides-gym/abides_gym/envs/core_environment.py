@@ -79,19 +79,26 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         self.gym_agent = config_state["agents"][-1]
         # KERNEL
         # instantiate the kernel object
+
+        kernel_args = subdict(
+            config_state,
+            [
+                "start_time",
+                "stop_time",
+                "agents",
+                "agent_latency_model",
+                "default_computation_delay",
+                "custom_properties",
+                "skip_log"
+            ],
+        )
+
+        # kernel_args['skip_log'] = config_state.get('skip_log', False)
+
         kernel = Kernel(
             random_state=np.random.RandomState(seed=seed),
-            **subdict(
-                config_state,
-                [
-                    "start_time",
-                    "stop_time",
-                    "agents",
-                    "agent_latency_model",
-                    "default_computation_delay",
-                    "custom_properties",
-                ],
-            ),
+            log_dir="",
+            **kernel_args
         )
         kernel.initialize()
         # kernel will run until GymAgent has to take an action
@@ -210,7 +217,14 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         Environments will automatically close() themselves when
         garbage collected or when the program exits.
         """
-        # kernel.termination()
+        print("--- Gym Env Close() Called: Writing simulation logs ---")
+        if hasattr(self, 'kernel') and self.kernel:
+
+            print("   - Calling kernel.termination() for final cleanup...")
+            self.kernel.terminate()
+
+
+        print("--- Environment cleanup complete. ---")
         ##TODO: look at whether some cleaning functions needed for abides
 
     @abstractmethod
