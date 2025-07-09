@@ -768,7 +768,6 @@ class Kernel:
             df_log: dataframe representation of the log that contains all the events logged during the simulation.
             filename: Location on disk to write the log to.
         """
-
         if self.skip_log:
             return
 
@@ -813,6 +812,7 @@ class Kernel:
         df_log = pd.DataFrame(self.summary_log)
 
         df_log.to_pickle(os.path.join(path, file), compression="bz2")
+        print(f"summary log written to file, length = {len(self.summary_log)}")
 
     def update_agent_state(self, agent_id: int, state: Any) -> None:
         """
