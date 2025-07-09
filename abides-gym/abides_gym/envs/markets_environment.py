@@ -58,6 +58,6 @@ class AbidesGymMarketsEnv(AbidesGymCoreEnv, ABC):
         }
         self.extra_background_config_kvargs = {
             "exchange_log_orders": False,
-            "book_logging": False,  # may need to set to True if wants to return OB in terminal state when episode ends (gym2)
+            "book_logging": True,  # may need to set to True if wants to return OB in terminal state when episode ends (gym2)
             "log_orders": None,
         }
