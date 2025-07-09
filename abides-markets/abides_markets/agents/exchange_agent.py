@@ -253,6 +253,18 @@ class ExchangeAgent(FinancialAgent):
 
         super().kernel_terminating()
         # print(self.order_books['ABM'].book_log2)
+
+        # writing the order book to file
+        for symbol, book in self.order_books.items():
+            if book.book_log2 is not None and len(book.book_log2) > 0:
+                df_book = pd.DataFrame(book.book_log2)
+                # Set the index to be the timestamp for better analysis.
+                df_book.set_index('QuoteTime', inplace=True)
+                # Write the log to a file named after the symbol.
+                self.write_log(df_book, filename=f'book_{symbol}')
+                print(f"Order book log for {symbol} written to file.")
+
+
         # If the oracle supports writing the fundamental value series for its
         bid_volume, ask_volume = self.order_books["ABM"].get_transacted_volume(
             self.current_time - self.mkt_open
