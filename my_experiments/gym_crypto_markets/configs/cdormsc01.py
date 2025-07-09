@@ -32,21 +32,26 @@ from abides_markets.utils import generate_latency_model
 def build_config(
     seed=int(datetime.now().timestamp() * 1_000_000) % (2**32 - 1),
     date="20250611",
-    end_time="10:00:00",
+    end_time="23:59:59",
     stdout_log_level="INFO",
     ticker="ABM",
-    starting_cash=10_000_000,  # Cash in this simulator is always in CENTS.
-    log_orders=True,  # if True log everything
+    starting_cash=1_000_000,  # Cash in this simulator is always in CENTS.
+    # Individual agent logs - These must be None or True (False will yield True)
+    log_orders_noise=None,
+    log_orders_momentum=True,
+    log_orders_MM=True,
+    log_orders_value=True,
+    log_orders=False,
     # 1) Exchange Agent
     book_logging=True,
     book_log_depth=10,
     stream_history_length=500,
-    exchange_log_orders=None,
+    exchange_log_orders=True, # overall market logs and file creation?
     # 2) Noise Agent
     num_noise_agents=1000,
     # 3) Value Agents
-    num_value_agents=50,
-    r_bar=100_000,  # true mean fundamental value
+    num_value_agents=100,
+    r_bar=1_100,  # true mean fundamental value
     kappa=1.67e-15,  # Value Agents appraisal of mean-reversion
     lambda_a=5.7e-12,  # ValueAgent arrival rate
     # oracle - commented out as using data oracle
@@ -70,7 +75,7 @@ def build_config(
     mm_backstop_quantity=0,
     mm_cancel_limit_delay=50,  # 50 nanoseconds
     # 5) Momentum Agents
-    num_momentum_agents=25,
+    num_momentum_agents=12,
 ):
     """
     create the background configuration for rmsc04
@@ -84,6 +89,29 @@ def build_config(
 
     # fix seed
     np.random.seed(seed)
+
+    # --- Pre-computation Block ---
+    # Adapt r_bar and sigma_n dynamically for data
+
+    print(" --- Dynamically configuring simulation from daily data ---")
+
+    # Construct the file path based on the date parameter
+    # Important: Assumes your scaled data is in this location
+
+    data_file_path = f"/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/my_experiments/gym_crypto_markets/data/test/BTCUSDT-trades-2025-06-11-1s.csv"
+
+    try:
+        df = pd.read_csv(data_file_path)
+        # Assumes the price column is named 'PRICE' and is already scaled to cents
+        daily_mean_price = df['PRICE'].mean()
+        daily_volatility = df['PRICE'].std()
+
+        print(f"Data for {date}: Mean Price (cents) = {daily_mean_price:.2f}, Volatility = {daily_volatility:.2f}")
+
+    except FileNotFoundError:
+        print(f"Warning: Data file not found at {data_file_path}. Using default parameters.")
+        daily_mean_price = 1000
+        daily_volatility = 50
 
     def path_wrapper(pomegranate_model_json):
         """
@@ -107,10 +135,14 @@ def build_config(
     MM_PARAMS = [
         (mm_window_size, mm_pov, mm_num_ticks, mm_wake_up_freq, mm_min_order_size),
         (mm_window_size, mm_pov, mm_num_ticks, mm_wake_up_freq, mm_min_order_size),
+        (mm_window_size, mm_pov, mm_num_ticks, mm_wake_up_freq, mm_min_order_size),
     ]
     NUM_MM = len(MM_PARAMS)
     # noise derived parameters
-    SIGMA_N = r_bar / 100  # observation noise variance
+    # Set r_bar dynamically based on data mean
+    r_bar = int(daily_mean_price)
+    #observation noise based on daily volatility
+    SIGMA_N = daily_volatility * 0.05
 
     # date&time
     DATE = int(pd.to_datetime(date).to_datetime64())
@@ -144,7 +176,7 @@ def build_config(
 
     symbols = {
         ticker: {
-            'data_file': '/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/my_experiments/gym_crypto_markets/data/test/BTCUSDT-trades-2025-06-11-1s.csv',
+            'data_file': data_file_path,
         }
     }
     oracle = DataOracle(MKT_OPEN, NOISE_MKT_CLOSE, symbols)
@@ -185,7 +217,7 @@ def build_config(
                 symbol=ticker,
                 starting_cash=starting_cash,
                 wakeup_time=get_wake_time(NOISE_MKT_OPEN, NOISE_MKT_CLOSE),
-                log_orders=log_orders,
+                log_orders=log_orders_noise,
                 order_size_model=ORDER_SIZE_MODEL,
                 random_state=np.random.RandomState(
                     seed=np.random.randint(low=0, high=2**32, dtype="uint64")
@@ -209,7 +241,7 @@ def build_config(
                 r_bar=r_bar,
                 kappa=kappa,
                 lambda_a=lambda_a,
-                log_orders=log_orders,
+                log_orders=log_orders_value,
                 order_size_model=ORDER_SIZE_MODEL,
                 random_state=np.random.RandomState(
                     seed=np.random.randint(low=0, high=2**32, dtype="uint64")
@@ -241,7 +273,7 @@ def build_config(
                 level_spacing=mm_level_spacing,
                 spread_alpha=mm_spread_alpha,
                 backstop_quantity=mm_backstop_quantity,
-                log_orders=log_orders,
+                log_orders=log_orders_MM,
                 random_state=np.random.RandomState(
                     seed=np.random.randint(low=0, high=2**32, dtype="uint64")
                 ),
@@ -264,7 +296,7 @@ def build_config(
                 max_size=10,
                 wake_up_freq=str_to_ns("37s"),
                 poisson_arrival=True,
-                log_orders=log_orders,
+                log_orders=log_orders_momentum,
                 order_size_model=ORDER_SIZE_MODEL,
                 random_state=np.random.RandomState(
                     seed=np.random.randint(low=0, high=2**32, dtype="uint64")
@@ -299,4 +331,5 @@ def build_config(
         "custom_properties": {"oracle": oracle},
         "random_state_kernel": random_state_kernel,
         "stdout_log_level": stdout_log_level,
+        "skip_log" : False
     }
