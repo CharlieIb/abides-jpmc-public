@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
         # tqdm for progress bar visualisation
         # max_steps are from the environment if they are available
-        max_steps = env.spec.max_episode_steps if env.spec.max_episode_steps else 10000  # Fallback if not defined
+        max_steps = env.spec.max_episode_steps if env.spec.max_episode_steps else 10  # Fallback if not defined
         with tqdm(total=max_steps, desc=f"Episode {episode + 1} Progress") as pbar:
             while not done and step_count < max_steps:
                 # 3. --- Agent Chooses Action ---
@@ -89,6 +89,10 @@ if __name__ == "__main__":
                 # reward, done flag, and updated info dictionary
                 new_state, reward, done, info = env.step(action)
 
+                # Update progress bar variables
+                current_price = info.get("last_transaction", 0.0)
+                current_holdings = int(state[0][0])
+                pbar.set_postfix(Price=f'{current_price:,.2f}', Holdings=current_holdings)
 
                 # 5. --- Agent Updates --- (no policy for rule-based learning)
                 # For a rule-based agent, this step might be used for logic or
