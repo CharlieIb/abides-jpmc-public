@@ -69,45 +69,8 @@ class NoiseAgent(TradingAgent):
         self.oracle = self.kernel.oracle
 
     def kernel_stopping(self) -> None:
-        # Always call parent method to be safe.
+        # Just use parent method.
         super().kernel_stopping()
-
-        # Trying to use parent classes logic which is slightly more sophisticated
-        # Fix the problem of logging an agent that has not waken up
-        # try:
-        #     # noise trader surplus is marked to EOD
-        #     bid, bid_vol, ask, ask_vol = self.get_known_bid_ask(self.target_exchange, self.symbol)
-        # except KeyError:
-        #     self.logEvent("FINAL_VALUATION", self.starting_cash, True)
-        # else:
-        #     # Print end of day valuation.
-        #     H = int(round(self.get_holdings(self.symbol), -2) / 100)
-        #
-        #     if bid and ask:
-        #         rT = int(bid + ask) / 2
-        #     else:
-        #         rT = self.last_trade[self.target_exchange][self.symbol]
-        #
-        #     # final (real) fundamental value times shares held.
-        #     surplus = rT * H
-        #
-        #     logger.debug("Surplus after holdings: {}", surplus)
-        #
-        #     # Add ending cash value and subtract starting cash value.
-        #     surplus += self.holdings["CASH"] - self.starting_cash
-        #     surplus = float(surplus) / self.starting_cash
-        #
-        #     self.logEvent("FINAL_VALUATION", surplus, True)
-        #
-        #     logger.debug(
-        #         "{} final report.  Holdings: {}, end cash: {}, start cash: {}, final fundamental: {}, surplus: {}",
-        #         self.name,
-        #         H,
-        #         self.holdings["CASH"],
-        #         self.starting_cash,
-        #         rT,
-        #         surplus,
-        #     )
 
     def wakeup(self, current_time: NanosecondTime) -> None:
         # Parent class handles discovery of exchange times and market_open wakeup call.
