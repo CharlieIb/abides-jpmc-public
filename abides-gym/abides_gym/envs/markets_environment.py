@@ -57,7 +57,7 @@ class AbidesGymMarketsEnv(AbidesGymCoreEnv, ABC):
             "market_data_buffer_length": self.market_data_buffer_length,
         }
         self.extra_background_config_kvargs = {
-            "exchange_log_orders": False,
+            "exchange_log_orders": True, # Seems this will control the OrderExecutedMsg Accepted Cancel Msg logging
             "book_logging": True,  # may need to set to True if wants to return OB in terminal state when episode ends (gym2)
             "log_orders": None,
         }
