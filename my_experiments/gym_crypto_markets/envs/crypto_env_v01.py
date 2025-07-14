@@ -83,8 +83,8 @@ class SubGymMarketsCryptoDailyInvestorEnv_v01(AbidesGymMarketsEnv):
 
         # CHECK PROPERTIES
         assert background_config in [
-            "cdormsc01",
-        ], "Select cdormsc01 as config"
+            "cdormsc01", "cdormsc02"
+        ], "Select one of cdormsc01, cdormsc02 as config"
 
         assert (self.first_interval <= str_to_ns("16:00:00")) & (
             self.first_interval >= str_to_ns("00:00:00")

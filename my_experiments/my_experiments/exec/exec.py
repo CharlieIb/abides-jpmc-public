@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     env = gym.make(
         "CryptoEnv-v1",
-        background_config="cdormsc01",
+        background_config="cdormsc02",
         timestep_duration='1s',
         debug_mode=True # Required for Mean reversion
     )
@@ -76,7 +76,7 @@ if __name__ == "__main__":
 
         # tqdm for progress bar visualisation
         # max_steps are from the environment if they are available
-        max_steps = env.spec.max_episode_steps if env.spec.max_episode_steps else 10  # Fallback if not defined
+        max_steps = env.spec.max_episode_steps if env.spec.max_episode_steps else 20000  # Fallback if not defined
         with tqdm(total=max_steps, desc=f"Episode {episode + 1} Progress") as pbar:
             while not done and step_count < max_steps:
                 # 3. --- Agent Chooses Action ---
@@ -112,13 +112,14 @@ if __name__ == "__main__":
 
         final_portfolio_value = final_cash + (final_holdings * final_price)
 
-        print(f"Episode {episode + 1} finished after {step_count} steps.")
-        print(
-            f"  Total Reward (Normalized Change in Portfolio Value): {episode_reward:.4f}")
+        print(f"Episode {episode + 1} finished after {step_count} steps.\n")
+        # print(f"  Total Reward (Normalized Change in Portfolio Value): {episode_reward:.4f}")
+        print(f"\n---------------------EPISODE {episode + 1} SUMMARY----------------------\n")
         print(f"  Initial Portfolio Value: {agent.initial_cash:.2f}")
         print(f"  Final Portfolio Value: {final_portfolio_value:.2f}")
         print(f"  Raw P&L (Final - Initial): {(final_portfolio_value - agent.initial_cash):.2f}")
         print(f"  Final State: Cash={final_cash:.2f}, Holdings={final_holdings:.2f}, Price={final_price:.2f}")
+        print(f"  Final Portfolio Value: {final_portfolio_value:.2f}\n")
     # 6. --- Cleanup ---
     env.close()
-    print("\nSimulation finished.")
+    print("\n--------------------------Simulation finished--------------------------")
