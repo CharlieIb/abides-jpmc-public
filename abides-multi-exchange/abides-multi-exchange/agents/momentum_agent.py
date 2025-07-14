@@ -81,16 +81,18 @@ class MomentumAgent(TradingAgent):
         can_trade = super().wakeup(current_time)
         if self.subscribe and not self.subscription_requested:
             # In subscription mode, the agent picks one exchange and subscribes to its data stream
-
-            super().request_data_subscription(
-                L2SubReqMsg(
-                    symbol=self.symbol,
-                    freq=int(10e9),
-                    depth=1,
+            if self.exchange_ids:
+                self.subscribed_exchange = self.random_state.choice(self.exchange_ids)
+                super().request_data_subscription(
+                    L2SubReqMsg(
+                        symbol=self.symbol,
+                        freq=int(10e9),
+                        depth=1,
+                    )
                 )
-            )
-            self.subscription_requested = True
-            self.state = "AWAITING_MARKET_DATA"
+                self.subscription_requested = True
+                self.state = "AWAITING_MARKET_DATA"
+
         elif can_trade and not self.subscribe:
             # In polling mode, the agent queries all exchanges for their spreads
             if self.exchange_ids:
