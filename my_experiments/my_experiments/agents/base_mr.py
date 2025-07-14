@@ -50,7 +50,7 @@ class MeanReversionAgent:
     becomes available after the first env.step().
     """
 
-    def __init__(self, observation_space, action_space, window=20, num_std_dev=2):
+    def __init__(self, observation_space, action_space, window=300, num_std_dev=2):
         self.observation_space = observation_space
         self.action_space = action_space
 
