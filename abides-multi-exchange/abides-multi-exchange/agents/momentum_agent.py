@@ -5,10 +5,10 @@ import numpy as np
 from abides_core import Message, NanosecondTime
 from abides_core.utils import str_to_ns
 
-from ...messages.marketdata import MarketDataMsg, L2SubReqMsg
-from ...messages.query import QuerySpreadResponseMsg
-from ...orders import Side
-from ..trading_agent import TradingAgent
+from abides_markets.messages.marketdata import MarketDataMsg, L2SubReqMsg
+from abides_markets.messages.query import QuerySpreadResponseMsg
+from abides_markets.orders import Side
+from .trading_agent import TradingAgent
 
 
 class MomentumAgent(TradingAgent):

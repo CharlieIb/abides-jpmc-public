@@ -6,14 +6,16 @@ import numpy as np
 
 from abides_core import Message, NanosecondTime
 
-from ...utils import sigmoid
-from ...messages.marketdata import (
+from abides_markets.utils import sigmoid
+from abides_markets.messages.marketdata import (
     MarketDataMsg,
     L2SubReqMsg,
+    BookImbalanceSubReqMsg,
+    BookImbalanceDataMsg
 )
-from ...messages.query import QuerySpreadResponseMsg, QueryTransactedVolResponseMsg, BookImbalanceSubReqMsg, BookImbalanceDataMsg
-from ...orders import Side
-from ..trading_agent import TradingAgent
+from abides_markets.messages.query import QuerySpreadResponseMsg, QueryTransactedVolResponseMsg
+from abides_markets.orders import Side
+from .trading_agent import TradingAgent
 
 ANCHOR_TOP_STR = "top"
 ANCHOR_BOTTOM_STR = "bottom"

@@ -5,8 +5,8 @@ import numpy as np
 
 from abides_core import Message, NanosecondTime
 
-from ..messages.query import QuerySpreadResponseMsg
-from ..orders import Side
+from abides_markets.messages.query import QuerySpreadResponseMsg
+from abides_markets.orders import Side
 from .trading_agent import TradingAgent
 
 
