@@ -1,11 +1,17 @@
 # cdormsc01 (Cryptocurrency Data Oracle Reference Market Simulation Configuration 01)
 # - X     Data Oracle
 # - 1     Exchange Agent
-# - 2     Adaptive Market Maker Agents
-# - 102   Value Agents
-# - 12    Momentum Agents
-# - 1000  Noise Agents
+# - 3     Adaptive Market Maker Agents
+# - 200   Value Agents
+# - 35    Momentum Agents
+# - 20000  Noise Agents
 
+"""
+Character - This market is characterised by quite large swings and then stabilisation.
+Sudden clusters of Noise agents create momentum which is piled on by momentum agents reducing the price by ~25%
+Then stabilising forces of the MM and Values agents raise the price back to fundamental value
+More prone to reducing then increasing, however surges did happen
+"""
 import os
 from datetime import datetime
 
@@ -48,9 +54,9 @@ def build_config(
     stream_history_length=500,
     exchange_log_orders=True, # overall market logs and file creation?
     # 2) Noise Agent
-    num_noise_agents=1000,
+    num_noise_agents=20000,
     # 3) Value Agents
-    num_value_agents=100,
+    num_value_agents=200,
     r_bar=1_100,  # true mean fundamental value
     kappa=1.67e-15,  # Value Agents appraisal of mean-reversion
     lambda_a=5.7e-12,  # ValueAgent arrival rate
@@ -65,17 +71,17 @@ def build_config(
     # each elem of mm_params is tuple (window_size, pov, num_ticks, wake_up_freq, min_order_size)
     mm_window_size="adaptive",
     mm_pov=0.025,
-    mm_num_ticks=10,
+    mm_num_ticks=20, # Doubled from baseline, as BTCUSDT spreads are wider than stocks due ot higher volatility
     mm_wake_up_freq="60S",
     mm_min_order_size=1,
-    mm_skew_beta=0,
-    mm_price_skew=4,
-    mm_level_spacing=5,
-    mm_spread_alpha=0.75,
+    mm_skew_beta=0.1, # Was zero and tends to impact inventory risk aversion (don't kno why this was zero)
+    mm_price_skew=6, # response to momentum agents, able to shift response to momentum in market
+    mm_level_spacing=7, # Increase to create less dense OB with larger gaps between price levels  as you would expect to see in crypto
+    mm_spread_alpha=0.85, # Increased from baseline of 0.75, BTC tends to be more sensitive to volatility widening spreads
     mm_backstop_quantity=0,
     mm_cancel_limit_delay=50,  # 50 nanoseconds
     # 5) Momentum Agents
-    num_momentum_agents=12,
+    num_momentum_agents=35,
 ):
     """
     create the background configuration for rmsc04
@@ -146,11 +152,11 @@ def build_config(
 
     # date&time
     DATE = int(pd.to_datetime(date).to_datetime64())
-    MKT_OPEN = DATE + str_to_ns("09:30:00")
+    MKT_OPEN = DATE + str_to_ns("00:10:00")
     MKT_CLOSE = DATE + str_to_ns(end_time)
     # These times needed for distribution of arrival times of Noise Agents
     NOISE_MKT_OPEN = MKT_OPEN
-    NOISE_MKT_CLOSE = DATE + str_to_ns("16:00:00")
+    NOISE_MKT_CLOSE = DATE + str_to_ns("23:00:00")
 
     # Oracles
     # Sparse Mean Reverting Oracle
