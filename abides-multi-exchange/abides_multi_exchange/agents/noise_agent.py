@@ -1,5 +1,5 @@
 import logging
-from typing import Optional
+from typing import Optional, List
 
 import numpy as np
 
@@ -30,10 +30,11 @@ class NoiseAgent(TradingAgent):
         log_orders: bool = False,
         order_size_model: Optional[OrderSizeGenerator] = None,
         wakeup_time: Optional[NanosecondTime] = None,
+        exchange_ids: Optional[List[int]] = None,
     ) -> None:
 
         # Base class init.
-        super().__init__(id, name, type, random_state, starting_cash, log_orders)
+        super().__init__(id, name, type, random_state, starting_cash, log_orders, exchange_id=exchange_ids)
 
         self.wakeup_time: NanosecondTime = wakeup_time
 
@@ -75,6 +76,7 @@ class NoiseAgent(TradingAgent):
     def wakeup(self, current_time: NanosecondTime) -> None:
         # Parent class handles discovery of exchange times and market_open wakeup call.
         super().wakeup(current_time)
+        # print(f"DEBUG ({self.name} @ {current_time}): Woke up. Current state: {self.state}")
 
         self.state = "INACTIVE"
 
@@ -87,6 +89,7 @@ class NoiseAgent(TradingAgent):
 
                 if self.exchange_ids:
                     self.target_exchange = self.random_state.choice(self.exchange_ids)
+                    # print(f"DEBUG ({self.name}): I have chosen to trade on Exchange {self.target_exchange}.")
                     logger.debug(f"{self.name} has chosen to trade on Exchange {self.target_exchange}")
                 else:
                     logger.warning(f"{self.name} has no exchange to trade on.")
@@ -114,6 +117,8 @@ class NoiseAgent(TradingAgent):
             return
 
         if type(self) == NoiseAgent:
+            # print(
+            #     f"DEBUG ({self.name} @ {current_time}): Requesting spread from my target Exchange {self.target_exchange}.")
             self.get_current_spread(self.target_exchange, self.symbol)
             self.state = "AWAITING_SPREAD"
         else:
@@ -121,17 +126,23 @@ class NoiseAgent(TradingAgent):
 
     def placeOrder(self) -> None:
         # place order in random direction at a mid
+        # print(f"{self.name}: Preparing to order.")
         buy_indicator = self.random_state.randint(0, 1 + 1)
 
         bid, bid_vol, ask, ask_vol = self.get_known_bid_ask(self.target_exchange, self.symbol)
 
         if self.order_size_model is not None:
             self.size = self.order_size_model.sample(random_state=self.random_state)
+        # print(f"{self.name}: got order size model and size is {self.size}, buy_indicator {buy_indicator}, ask {ask} bid {bid}.")
 
         if self.size > 0:
             if buy_indicator == 1 and ask:
+                # print(
+                #     f"DEBUG ({self.name}): Placing BUY limit order for {self.size} shares @ {ask} on Exchange {self.target_exchange}")
                 self.place_limit_order(self.target_exchange, self.symbol, self.size, Side.BID, ask)
             elif not buy_indicator and bid:
+                # print(
+                #     f"DEBUG ({self.name}): Placing SELL limit order for {self.size} shares @ {ask} on Exchange {self.target_exchange}")
                 self.place_limit_order(self.target_exchange, self.symbol, self.size, Side.ASK, bid)
 
     def receive_message(
@@ -139,6 +150,7 @@ class NoiseAgent(TradingAgent):
     ) -> None:
         # Parent class schedules market open wakeup call once market open/close times are known.
         super().receive_message(current_time, sender_id, message)
+        # print(f"DEBUG ({self.name} @ {current_time}): Received spread response from Exchange {sender_id}. Preparing to place order.")
 
         # We have been awakened by something other than our scheduled wakeup.
         # If our internal state indicates we were waiting for a particular event,
@@ -148,13 +160,16 @@ class NoiseAgent(TradingAgent):
             # We were waiting to receive the current spread/book.  Since we don't currently
             # track timestamps on retained information, we rely on actually seeing a
             # QUERY_SPREAD response message.
+            # print(f"DEBUG ({self.name} @ {current_time}): Received response from Exchange {sender_id}. mkt is open. is it {self.mkt_closed}")
 
             if isinstance(message, QuerySpreadResponseMsg):
                 # This is what we were waiting for.
 
                 # But if the market is now closed, don't advance to placing orders.
-                if self.mkt_closed:
+                if self.mkt_closed.get(sender_id, True):
                     return
+                # print(
+                #     f"DEBUG ({self.name} @ {current_time}): Received spread response from Exchange {sender_id}. mkt is open.")
 
                 # We now have the information needed to place a limit order with the eta
                 # strategic threshold parameter.

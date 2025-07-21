@@ -1,5 +1,5 @@
 import logging
-from typing import Optional, Dict
+from typing import Optional, Dict, List
 
 import numpy as np
 
@@ -28,10 +28,11 @@ class ValueAgent(TradingAgent):
         sigma_s: float = 100_000,
         order_size_model=None,
         lambda_a: float = 0.005,
-        log_orders: float = False,
+        log_orders: bool = False,
+        exchange_ids: Optional[List[int]] = None,
     ) -> None:
         # Base class init.
-        super().__init__(id, name, type, random_state, starting_cash, log_orders)
+        super().__init__(id, name, type, random_state, starting_cash, log_orders, exchange_id=exchange_ids)
 
         # Store important parameters particular to the ZI agent.
         self.symbol: str = symbol  # symbol to trade
@@ -89,48 +90,39 @@ class ValueAgent(TradingAgent):
         # Parent class handles discovery of exchange times and market_open wakeup call.
         super().wakeup(current_time)
 
-        self.state = "INACTIVE"
-
-        if not self.mkt_open or not self.mkt_close:
+        if not self.mkt_open:
             # TradingAgent handles discovery of exchange times.
             return
-        else:
-            if not self.trading:
+        if not self.trading:
+            if current_time > min(self.mkt_open.values()):
                 self.trading = True
+                logger.debug(f"{self.name} is now ready to trade.")
+            else:
+                # Market is not open yet, do nothing and wait for the next wakeup.
+                return
 
-                # Time to start trading!
-                logger.debug("{} is ready to start trading now.", self.name)
-
-        # Steady state wakeup behavior starts here.
-
-        # If we've been told the market has closed for the day, we will only request
-        # final price information, then stop.
-        if self.mkt_closed and (self.symbol in self.daily_close_price):
-            # Market is closed and we already got the daily close price.
+        # Check if all markets are now closed.
+        all_markets_closed = len(self.mkt_closed) > 0 and all(
+            self.mkt_closed.get(eid, False) for eid in self.exchange_ids)
+        if all_markets_closed:
+            # All markets are closed for the day. Stop all activity.
             return
 
         delta_time = self.random_state.exponential(scale=1.0 / self.lambda_a)
         self.set_wakeup(current_time + int(round(delta_time)))
 
-        if self.mkt_closed and (not self.symbol in self.daily_close_price):
-            self.get_current_spread(self.symbol)
-            self.state = "AWAITING_SPREAD"
-            return
-
         self.cancel_all_orders()
 
-        if type(self) == ValueAgent:
-            # Must account for multiple exchanges
-            if self.exchange_ids:
-                self.spreads_to_receive = len(self.exchange_ids)
-                self.latest_spreads = {}
-                for ex_id in self.exchange_ids:
-                    self.get_current_spread(ex_id, self.symbol)
-                self.state = "AWAITING_SPREAD"
-            else:
-                self.state = "INACTIVE"
+        if self.exchange_ids:
+            self.spreads_to_receive = len(self.exchange_ids)
+            self.latest_spreads = {}  # Clear old data
+            for ex_id in self.exchange_ids:
+                self.get_current_spread(ex_id, self.symbol)
+            # print(f"DEBUG ({self.name} @ {current_time}): Waking up. Will query {self.spreads_to_receive} exchanges.")
+            # Set our state to indicate we are now waiting for market data.
+            self.state = "AWAITING_SPREADS"
         else:
-            self.state = "ACTIVE"
+            self.state = "INACTIVE"
 
     def updateEstimates(self) -> int:
         # Called by a background agent that wishes to obtain a new fundamental observation,
@@ -139,21 +131,24 @@ class ValueAgent(TradingAgent):
 
         # The agent obtains a new noisy observation of the current fundamental value
         # and uses this to update its internal estimates in a Bayesian manner.
-
         obs_t = self.oracle.observe_price(
             self.symbol,
             self.current_time,
             sigma_n=self.sigma_n,
             random_state=self.random_state,
         )
-
-        logger.debug("{} observed {} at {}", self.name, obs_t, self.current_time)
+        # print(f"{self.name} observed {obs_t} at {self.current_time}")
+        logger.debug(f"{self.name} observed {obs_t} at {self.current_time}")
 
         # Update internal estimates of the current fundamental value and our error of same.
 
         # If this is our first estimate, treat the previous wake time as "market open".
-        if self.prev_wake_time is None:
-            self.prev_wake_time = self.mkt_open
+        if self.mkt_open:  # Check if the dictionary is not empty
+            self.prev_wake_time = min(self.mkt_open.values())
+        else:
+            # Fallback in case market open times are not yet known
+            logger.warning(f"{self.name} has no market open times yet. Cannot update estimates.")
+            return self.r_t
 
         # First, obtain an intermediate estimate of the fundamental value by advancing
         # time from the previous wake time to the current time, performing mean
@@ -183,7 +178,10 @@ class ValueAgent(TradingAgent):
         # Now having a best estimate of the fundamental at time t, we can make our best estimate
         # of the final fundamental (for time T) as of current time t.  Delta is now the number
         # of time steps remaining until the simulated exchange closes.
-        delta = max(0, (self.mkt_close - self.current_time))
+        if self.mkt_close:
+            delta = max(0, (min(self.mkt_close.values()) - self.current_time))
+        else:
+            delta = 0
 
         # IDEA: instead of letting agent "imagine time forward" to the end of the day,
         #       impose a maximum forward delta, like ten minutes or so.  This could make
@@ -213,13 +211,12 @@ class ValueAgent(TradingAgent):
         then applies a smart passive pricing strategy to place an order.
         """
         # 1. Get the agent's estimate of the fundamental value.
+        # print(f"DEBUG ({self.name}): Inside analyze_and_place_order.")
         r_T = self.updateEstimates()
 
         # 2. Find the single best bid and ask price across all exchanges.
-        best_global_bid = float('-inf')
-        best_global_ask = float('inf')
-        best_bid_exchange = None
-        best_ask_exchange = None
+        best_global_bid, best_global_ask = float('-inf'), float('inf')
+        best_bid_exchange, best_ask_exchange = None, None
 
         for ex_id, spread_msg in self.latest_spreads.items():
             if spread_msg.asks:
@@ -233,53 +230,47 @@ class ValueAgent(TradingAgent):
                 if best_bid_on_exchange > best_global_bid:
                     best_global_bid = best_bid_on_exchange
                     best_bid_exchange = ex_id
+        # If we find a valid spread on any exchange use normal logic, else it is an empty market so BOOTSTRAP IT.
+        if best_bid_exchange is not None and best_ask_exchange is not None:
+            # 3. Use the best global prices to make a decision (same as original logic).
+            midpoint = (best_global_ask + best_global_bid) / 2
 
-        # If we couldn't find a valid spread on any exchange, do nothing.
-        if best_bid_exchange is None or best_ask_exchange is None:
-            logger.debug(f"{self.name} could not find a valid spread on any exchange.")
-            return
+            side = Side.ASK if r_T < midpoint else Side.BID
+            target_exchange = best_bid_exchange if side == Side.ASK else best_ask_exchange
+            baseline_price = best_global_bid if side == Side.ASK else best_global_ask
 
-        # 3. Use the best global prices to make a decision (same as original logic).
-        midpoint = (best_global_ask + best_global_bid) / 2
+            spread = abs(best_global_ask - best_global_bid)
 
-        # Determine the side and the baseline price for the order.
-        if r_T < midpoint:
-            # Fundamental belief is that price will go down, so we want to sell.
-            side = Side.ASK
-            target_exchange = best_bid_exchange
-            baseline_price = best_global_bid
-        elif r_T >= midpoint:
-            # Fundamental belief is that price will go up, so we want to buy.
-            side = Side.BID
-            target_exchange = best_ask_exchange
-            baseline_price = best_global_ask
+            # Decide whether to be aggressive (cross the spread) or passive.
+            if self.random_state.rand() < self.percent_aggr:
+                # Aggressive: place the order at the best available price.
+                limit_price = baseline_price
+            else:
+                # Passive: adjust the price deeper into the book to maximize surplus.
+                if spread > 0:
+                    adjust_int = self.random_state.randint(0, min(9223372036854775807 - 1, self.depth_spread * spread))
+                else:
+                    adjust_int = 0
+                limit_price = baseline_price + adjust_int if side == Side.ASK else baseline_price - adjust_int
         else:
-            # No clear opportunity.
-            return
+            # print(f"DEBUG ({self.name}): Analysis complete. No valid spread found. BOOTSTRAPPING the market")
+            # CRITICAL LOGIC: Market is empty, bootstrap it!
+            logger.debug(f"{self.name} found an empty market. Bootstrapping with a single order.")
+            side = Side.BID if self.random_state.rand() < 0.5 else Side.ASK
+            limit_price = r_T  # Place the order at our fundamental valuation.
+            # Pick a random exchange to place the seed order on.
+            target_exchange = self.random_state.choice(self.exchange_ids)
 
-        # 4. Apply the "smart passive" pricing logic (same as original logic).
-        spread = abs(best_global_ask - best_global_bid)
+        # print(f"DEBUG ({self.name}): Analysis complete. Best Bid: {best_global_bid} (Ex {best_bid_exchange}), Best Ask: {best_global_ask} (Ex {best_ask_exchange}). r_T: {r_T}")
 
-        # Decide whether to be aggressive (cross the spread) or passive.
-        if self.random_state.rand() < self.percent_aggr:
-            # Aggressive: place the order at the best available price.
-            limit_price = baseline_price
-        else:
-            # Passive: adjust the price deeper into the book to maximize surplus.
-            adjust_int = self.random_state.randint(0,
-                                                   min(9223372036854775807 - 1, self.depth_spread * spread)
-                                                   )
 
-            if side == Side.BID:
-                limit_price = baseline_price - adjust_int
-            else:  # Side is ASK
-                limit_price = baseline_price + adjust_int
 
         # 5. Place the final, intelligently priced order.
         if self.order_size_model is not None:
             self.size = self.order_size_model.sample(random_state=self.random_state)
 
         if self.size > 0:
+            # print(f"DEBUG ({self.name}): PLACING ORDER -> {side.value} {self.size} on Ex {target_exchange} @ {limit_price}")
             logger.debug(
                 f"{self.name} placing {side.value} order for {self.size} on exchange {target_exchange} at price {limit_price}")
             self.place_limit_order(target_exchange, self.symbol, self.size, side, limit_price)
@@ -289,12 +280,13 @@ class ValueAgent(TradingAgent):
     ) -> None:
         # Parent class schedules market open wakeup call once market open/close times are known.
         super().receive_message(current_time, sender_id, message)
+#        print(f"DEBUG ({self.name} @ {current_time}): Received message '{type(message).__name__}' from agent {sender_id}. Current state: {self.state}")
 
         # We have been awakened by something other than our scheduled wakeup.
         # If our internal state indicates we were waiting for a particular event,
         # check if we can transition to a new state.
 
-        if self.state == "AWAITING_SPREAD":
+        if self.state == "AWAITING_SPREADS":
             # We were waiting to receive the current spread/book.  Since we don't currently
             # track timestamps on retained information, we rely on actually seeing a
             # QUERY_SPREAD response message.
@@ -303,11 +295,18 @@ class ValueAgent(TradingAgent):
                 # This is what we were waiting for.
                 self.latest_spreads[sender_id] = message
                 # But if the market is now closed, don't advance to placing orders.
-                if self.mkt_closed[sender_id]:
+                num_received = len(self.latest_spreads)
+                # print(f"DEBUG ({self.name} @ {current_time}): Received spread from {sender_id}. Have {num_received}/{self.spreads_to_receive} responses.")
+
+                is_market_closed = self.mkt_closed.get(sender_id, False)
+
+                if is_market_closed:
                     return
-                if len(self.latest_spreads) >= self.spreads_to_receive:
+                if num_received >= self.spreads_to_receive:
                     # We now have the information needed to place a limit order with the eta
                     # strategic threshold parameter.
+                    # print(f"DEBUG ({self.name} @ {current_time}): All spreads received. Proceeding to analyze.")
+
                     self.analyze_and_place_order()
                     self.state = "AWAITING_WAKEUP"
 

@@ -90,9 +90,11 @@ class CoreBackgroundAgent(TradingAgent):
     def wakeup(self, current_time: NanosecondTime) -> bool:
         """On wakeup, the agent subscribes to all exchanges (if it hasn't already)
            and then calls its main logic loop."""
+        #print(f"DEBUG: CoreBackgroundAgent ({self.id}) waking up at time {current_time}")  # <-- ADD THIS
         ready_to_trade = super().wakeup(current_time)
 
         if not self.has_subscribed and self.exchange_ids:
+            #print(f"DEBUG: CoreBackgroundAgent ({self.id}) is attempting to subscribe now.")  # <-- ADD THIS
             # Subscribe to all available exchanges
             for ex_id in self.exchange_ids:
                 if self.subscribe:
@@ -160,20 +162,52 @@ class CoreBackgroundAgent(TradingAgent):
         """
         # TODO: Add cancel in actions
         for action in actions:
-            exchange_id = action.get("exchange_id")
-            if exchange_id is None:
-                raise ValueError(f"Action {action} must include an 'exchange_id'")
+            action_type = action.get("type")
+            if action_type in ["MKT", "LMT"]:
+                exchange_id = action.get("exchange_id")
+                if exchange_id is None:
+                    raise ValueError(f"Action {action} must include an 'exchange_id'")
+                side = Side.BID if action["direction"] == "BUY" else Side.ASK
 
-            if action["type"] == "MKT":
-                side = Side.BID if action["direction"] == "BUY" else Side.ASK
-                self.place_market_order(exchange_id, self.symbol, action["size"], side)
-            elif action["type"] == "LMT":
-                side = Side.BID if action["direction"] == "BUY" else Side.ASK
-                self.place_limit_order(exchange_id, self.symbol, action["size"], side, action["limit_price"])
-            elif action["type"] == "CCL_ALL":
+                if action["type"] == "MKT":
+                    self.place_market_order(exchange_id, self.symbol, action["size"], side)
+                elif action["type"] == "LMT":
+                    self.place_limit_order(exchange_id, self.symbol, action["size"], side, action["limit_price"])
+            elif action_type == "TFR":
+                from_ex = action.get("from_exchange")
+                to_ex = action.get("to_exchange")
+                size = action.get("size")
+
+                # Check if the agent has enough holdings to transfer
+                current_holdings = self.get_holdings_by_exchange(self.symbol, exchange_id=from_ex)
+                if current_holdings < size:
+                    print(f"{self.name} failed to transfer {size} shares from Ex {from_ex}. "
+                                   f"Holdings: {current_holdings}")
+                    continue
+
+                # Apply fee structure
+                fee_structure = self.withdrawal_fees.get(from_ex, {})
+                withdrawal_fee = fee_structure.get(self.symbol, fee_structure.get('default', 0))
+                self.cash -= withdrawal_fee
+                self.holdings_by_exchange[from_ex][self.symbol] -= size
+
+                print(f"DEBUG ({self.name}): Initiating transfer of {size} shares from Ex {from_ex} to {to_ex}. "
+                      f"Fee: {withdrawal_fee}")
+
+                # 3. Schedule the completion of the transfer after a delay
+                self.kernel.schedule_event(
+                    self.current_time + self.transfer_delay,
+                    self,
+                    "_complete_transfer",
+                    to_ex,
+                    self.symbol,
+                    size
+                )
+
+            elif action_type == "CCL_ALL":
                 self.cancel_all_orders() # This parent method correctly cancels across all exchanges.
             else:
-                raise ValueError(f"Action Type {action['type']} is not supported")
+                raise ValueError(f"Action Type '{action_type}' is not supported")
 
     def update_raw_state(self) -> None:
         parsed_mkt_data_buffer = deepcopy(self.parsed_mkt_data_buffer)
@@ -187,7 +221,6 @@ class CoreBackgroundAgent(TradingAgent):
         self.raw_state.append(new)
 
     def get_raw_state(self) -> Deque:
-        # TODO: Incompatible return value type (got "deque[Any]", expected "Dict[Any, Any]")
         return self.raw_state
 
     def get_parsed_mkt_data(self, exchange_id: int, message: L2DataMsg) -> Dict[str, Any]:
@@ -227,6 +260,7 @@ class CoreBackgroundAgent(TradingAgent):
             "order_status": self.order_status,
             "mkt_open_times": self.mkt_open, # Now a dict of times
             "mkt_close_times": self.mkt_close, # Now a dict of times
+            "withdrawal_fees": self.withdrawal_fees,
         }
 
     def order_executed(self, exchange_id: int, order: Order) -> None:

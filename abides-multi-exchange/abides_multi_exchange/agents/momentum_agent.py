@@ -1,4 +1,5 @@
 from typing import List, Optional, Dict
+from collections import deque
 
 import numpy as np
 
@@ -33,9 +34,10 @@ class MomentumAgent(TradingAgent):
         order_size_model=None,
         subscribe=False,
         log_orders=False,
+        exchange_ids: Optional[List[int]] = None,
     ) -> None:
 
-        super().__init__(id, name, type, random_state, starting_cash, log_orders)
+        super().__init__(id, name, type, random_state, starting_cash, log_orders, exchange_id=exchange_ids)
         self.symbol = symbol
         self.min_size = min_size  # Minimum order size
         self.max_size = max_size  # Maximum order size
@@ -52,7 +54,7 @@ class MomentumAgent(TradingAgent):
 
         self.subscribe = subscribe  # Flag to determine whether to subscribe to data or use polling mechanism
         self.subscription_requested = False
-        self.mid_list: List[float] = []
+        self.mid_list: List[float] = deque(maxlen=51)
         self.avg_20_list: List[float] = []
         self.avg_50_list: List[float] = []
         self.log_orders = log_orders
@@ -114,6 +116,8 @@ class MomentumAgent(TradingAgent):
             and self.state == "AWAITING_SPREAD"
             and isinstance(message, QuerySpreadResponseMsg)
         ):
+            self.latest_spreads[sender_id] = message
+
             if len(self.latest_spreads) >= self.spreads_to_receive:
                 self.analyse_and_place_order()
                 self.set_wakeup(current_time + self.get_wake_frequency())
@@ -131,7 +135,7 @@ class MomentumAgent(TradingAgent):
                 self.analyse_and_place_order(single_bid=bids[0][0], single_ask=asks[0][0], single_exchange=self.subscribed_exchange)
             self.state = "AWAITING_MARKET_DATA"
 
-    def analyse_and_place_order(self, single_bid: int, single_ask: int, single_exchange=None) -> None:
+    def analyse_and_place_order(self, single_bid: int = None, single_ask: int = None, single_exchange=None) -> None:
         """
         Analyses market data to calculate momentum and places orders accordingly
         Can operate on global view (polling) or a single exchange's view (subscription)
@@ -175,19 +179,24 @@ class MomentumAgent(TradingAgent):
                         random_state=self.random_state
                     )
 
+
                 if self.size > 0:
                     # Positive momentum: buy at exchange with the best (lowest) ask
                     if self.avg_20_list[-1] >= self.avg_50_list[-1]:
+                        # print(f"{self.name}{self.id} created positive trading signal BUY size: {self.size} @ {best_global_ask}")
                         self.place_limit_order(
-                            self.symbol,
+                            exchange_id=best_ask_exchange,
+                            symbol=self.symbol,
                             quantity=self.size,
                             side=Side.BID,
                             limit_price=best_global_ask,
                         )
                     # Negative momentum: sell at the exchange with best (highest) bid
                     else:
+                        # print(f"{self.name}{self.id} created negative trading signal, SELL size: {self.size} @ {best_global_ask}")
                         self.place_limit_order(
-                            self.symbol,
+                            exchange_id=best_bid_exchange,
+                            symbol=self.symbol,
                             quantity=self.size,
                             side=Side.ASK,
                             limit_price=best_global_bid,
