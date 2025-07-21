@@ -69,9 +69,10 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             backstop_quantity: int = 0,
             log_orders: bool = False,
             min_imbalance=0.9,
+            exchange_ids: Optional[List[int]] = None,
     ) -> None:
 
-        super().__init__(id, name, type, random_state, starting_cash, log_orders)
+        super().__init__(id, name, type, random_state, starting_cash, log_orders, exchange_id=exchange_ids)
         self.is_adaptive: bool = False
         self.symbol: str = symbol
         self.pov: float = pov # fraction of transacted volume placed at each price level
@@ -135,9 +136,11 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             self.initialise_state(ex_id)
             self.buy_order_size[ex_id] = self.min_order_size
             self.sell_order_size[ex_id] = self.min_order_size
+            self.last_mid[ex_id] = 0
             self.last_spread[ex_id] = INITIAL_SPREAD_VALUE
             self.window_size[ex_id] = self.window_size_init if not self.is_adaptive else INITIAL_SPREAD_VALUE
             self.tick_size[ex_id] = ceil(self.last_spread[ex_id] * self.level_spacing) if not self.is_adaptive else 1
+            print(f"DEBUG ({self.name}): Subscribing to BookImbalanceDataMsg for exchange: {self.exchange_ids}")
 
     def kernel_stopping(self) -> None:
         """The parent TradingAgent class now handles all final valuation."""
@@ -146,8 +149,10 @@ class AdaptiveMarketMakerAgent(TradingAgent):
 
     def wakeup(self, current_time: NanosecondTime):
         """Agent wakeup is determined by self.wake_up_freq."""
+        print(f"\n--- WAKEUP at {current_time} for {self.name} ---")
         can_trade = super().wakeup(current_time)
         if not can_trade:
+            print(f"DEBUG ({self.name}): Market not open or not yet known. Sleeping.")
             return
 
         if not self.has_subscribed:
@@ -160,11 +165,12 @@ class AdaptiveMarketMakerAgent(TradingAgent):
                     )
                 )
             self.has_subscribed = True
-
+        print(f"DEBUG ({self.name}): Cancelling all orders to requote.")
         self.cancel_all_orders()
         self.delay(self.cancel_limit_delay)
 
         for ex_id in self.exchange_ids:
+            print(f"DEBUG ({self.name}): Wiping state and requesting fresh data for Exchange {ex_id}.")
             self.initialise_state(ex_id)  # Reset state for all exchanges
             if self.subscribe and not self.subscription_requested:
                 self.request_data_subscription(ex_id, L2SubReqMsg(symbol=self.symbol, freq=self.subscribe_freq,
@@ -180,7 +186,8 @@ class AdaptiveMarketMakerAgent(TradingAgent):
     def receive_message(self, current_time: NanosecondTime, sender_id: int, message: Message) -> None:
         """Processes message from an exchange and acts on a per-exchange basis."""
         super().receive_message(current_time, sender_id, message)
-
+        print(
+            f"DEBUG ({self.name} @ {current_time}): Received message '{type(message).__name__}' from Exchange {sender_id}.")
         # --- MODIFICATION: Handle messages on a per-exchange (sender_id) basis ---
         exchange_state = self.state.get(sender_id)
         if not exchange_state:
@@ -194,12 +201,16 @@ class AdaptiveMarketMakerAgent(TradingAgent):
                 self.cancel_all_orders()  # First cancel existing quotes
                 self.delay(self.cancel_limit_delay)
                 self.place_orders(sender_id, last_mid_for_exchange)
+            print(
+                f"DEBUG ({self.name}): Processed volume for Exchange {sender_id}. State: {self.state[sender_id]}")
             return
 
         # Handle volume responses
         if isinstance(message, QueryTransactedVolResponseMsg) and exchange_state["AWAITING_TRANSACTED_VOLUME"]:
             self.update_order_size(sender_id)
             exchange_state["AWAITING_TRANSACTED_VOLUME"] = False
+            print(
+                f"DEBUG ({self.name}): Processed volume for Exchange {sender_id}. State: {self.state[sender_id]}")
 
         # Handle spread/market data responses
         mid = None
@@ -211,6 +222,8 @@ class AdaptiveMarketMakerAgent(TradingAgent):
                 if self.is_adaptive:
                     self._adaptive_update_spread(sender_id, int(ask - bid))
             exchange_state["AWAITING_SPREAD"] = False
+            print(
+                f"DEBUG ({self.name}): Processed spread for Exchange {sender_id}. State: {self.state[sender_id]}")
 
         elif self.subscribe and isinstance(message, MarketDataMsg) and exchange_state["AWAITING_MARKET_DATA"]:
             bids = self.known_bids.get(sender_id, {}).get(self.symbol, [])
@@ -221,15 +234,21 @@ class AdaptiveMarketMakerAgent(TradingAgent):
                 if self.is_adaptive:
                     self._adaptive_update_spread(sender_id, int(asks[0][0] - bids[0][0]))
             exchange_state["AWAITING_MARKET_DATA"] = False
+            print(
+                f"DEBUG ({self.name}): Processed spread for Exchange {sender_id}. State: {self.state[sender_id]}")
 
         # Check if we have all necessary data for this exchange to place orders
         if not exchange_state["AWAITING_TRANSACTED_VOLUME"] and \
                 not exchange_state.get("AWAITING_SPREAD", True) and \
                 not exchange_state.get("AWAITING_MARKET_DATA", True):
-
+            print(
+                f"DEBUG ({self.name}): All data received for Exchange {sender_id}. Attempting to place orders.")
             current_mid = self.last_mid.get(sender_id)
             if current_mid:
                 self.place_orders(sender_id, current_mid)
+            else:
+                print(
+                    f"DEBUG ({self.name}): Cannot place orders for Exchange {sender_id}, mid-price is missing.")
 
             if not self.subscribe:
                 self.set_wakeup(current_time + self.get_wake_frequency())
@@ -252,10 +271,13 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         buy_vol, sell_vol = self.transacted_volume.get(exchange_id, {}).get(self.symbol, (0, 0))
         total_vol = buy_vol + sell_vol
         qty = round(self.pov * total_vol)
+        print(f"DEBUG ({self.name} for Ex {exchange_id}): Total vol={total_vol}, base size={qty}.")
 
         if self.skew_beta == 0:
             self.buy_order_size[exchange_id] = qty if qty >= self.min_order_size else self.min_order_size
             self.sell_order_size[exchange_id] = qty if qty >= self.min_order_size else self.min_order_size
+            print(
+                f"DEBUG ({self.name} for Ex {exchange_id}): Final order sizes -> BUY: {self.buy_order_size[exchange_id]}, SELL: {self.sell_order_size[exchange_id]}")
         else:
             holdings_on_exchange = self.get_holdings_by_exchange(self.symbol, exchange_id)
             proportion_sell = sigmoid(holdings_on_exchange, self.skew_beta)
@@ -263,7 +285,8 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             buy_size = floor((1 - proportion_sell) * qty)
             self.buy_order_size[exchange_id] = buy_size if buy_size >= self.min_order_size else self.min_order_size
             self.sell_order_size[exchange_id] = sell_size if sell_size >= self.min_order_size else self.min_order_size
-
+            print(
+                f"DEBUG ({self.name} for Ex {exchange_id}): Final order sizes -> BUY: {self.buy_order_size[exchange_id]}, SELL: {self.sell_order_size[exchange_id]}")
     def compute_orders_to_place(self, exchange_id: int, mid: int) -> Tuple[List[int], List[int]]:
         """Computes the ladder of orders for a specific exchange."""
         if self.price_skew_param is None:
@@ -297,7 +320,8 @@ class AdaptiveMarketMakerAgent(TradingAgent):
 
         bids = [p for p in range(lowest_bid, highest_bid + tick, tick)] if tick > 0 else []
         asks = [p for p in range(lowest_ask, highest_ask + tick, tick)] if tick > 0 else []
-
+        print(
+            f"DEBUG ({self.name} for Ex {exchange_id}): Computed ladder -> Mid: {mid}, Bids: {bids}, Asks: {asks}")
         return bids, asks
 
     def place_orders(self, exchange_id: int, mid: int) -> None:
@@ -333,7 +357,10 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         # Filter out None values in case create_limit_order fails a risk check
         valid_orders = [order for order in orders if order is not None]
         if valid_orders:
+            print(f"DEBUG ({self.name}): Placing {len(valid_orders)} orders on Exchange {exchange_id}.")
             self.place_multiple_orders(exchange_id, valid_orders)
+        else:
+            print(f"DEBUG ({self.name}): No valid orders to place on Exchange {exchange_id}.")
 
     def validate_anchor(self, anchor: str) -> str:
         if anchor not in [ANCHOR_TOP_STR, ANCHOR_BOTTOM_STR, ANCHOR_MIDDLE_STR]:
