@@ -29,7 +29,7 @@ if __name__ == "__main__":
 
     env = gym.make(
         "CryptoEnv-v1",
-        background_config="cdormsc02",
+        background_config="cdormsc01",
         timestep_duration='1s',
         debug_mode=True # Required for Mean reversion
     )
@@ -40,7 +40,8 @@ if __name__ == "__main__":
     # Instantiate the rule-based agent and pass it the environment's observation
     # and action spaces. Hyperparameters like the Bollinger Band window can be set here.
     # You can adjust window and num_std_dev here
-    agent = MeanReversionAgent(env.observation_space, env.action_space, window=20, num_std_dev=2)
+
+    agent = MeanReversionAgent(env.observation_space, env.action_space, window=300, num_std_dev=2)
 
     # Configure the agent with critical parameters from the environment's config
     # This ensures the agent's internal logic matches the simulation's rules.
@@ -76,7 +77,7 @@ if __name__ == "__main__":
 
         # tqdm for progress bar visualisation
         # max_steps are from the environment if they are available
-        max_steps = env.spec.max_episode_steps if env.spec.max_episode_steps else 20000  # Fallback if not defined
+        max_steps = env.spec.max_episode_steps if env.spec.max_episode_steps else 100  # Fallback if not defined
         with tqdm(total=max_steps, desc=f"Episode {episode + 1} Progress") as pbar:
             while not done and step_count < max_steps:
                 # 3. --- Agent Chooses Action ---

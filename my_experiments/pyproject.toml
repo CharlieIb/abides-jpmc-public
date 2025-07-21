@@ -17,6 +17,7 @@ dependencies = [
     "abides-core",      # Use the PyPI names of your packages
     "abides-gym",
     "abides-markets",
+    "abides-multi-exchange"
 ]
 
 [tool.setuptools]
