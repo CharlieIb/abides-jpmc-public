@@ -8,7 +8,10 @@ setup(
     install_requires=[
         'gym==0.18.0',
         'numpy',
-        # Add any other dependencies your environment needs, e.g., 'pandas'
+        'abides-core',
+        'abides-gym',
+        'abides-markets',
+        'abides-multi-exchange',
     ],
     entry_points={
         'gym.envs': [
