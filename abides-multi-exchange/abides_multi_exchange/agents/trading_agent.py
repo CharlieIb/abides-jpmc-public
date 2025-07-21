@@ -182,31 +182,26 @@ class TradingAgent(FinancialAgent):
 
         # Find exchanges with which we can place orders.
         if not self.exchange_ids:
-            self.exchange_ids = [a.id for a in self.kernel.find_agents_by_type(ExchangeAgent)]
+            self.exchange_ids = [a for a in self.kernel.find_agents_by_type(ExchangeAgent)]
 
-        for exchange_id in self.exchange_ids:
+        for ex_id in self.exchange_ids:
             logger.debug(
-                f"Agent {self.id} will communicate with Exchange ID: {exchange_id}"
+                f"Agent {self.id} will communicate with Exchange ID: {ex_id}"
             )
-            self.known_bids[exchange_id] = {}
-            self.known_asks[exchange_id] = {}
+            self.holdings_by_exchange[ex_id] = {}
+            self.known_bids[ex_id] = {}
+            self.known_asks[ex_id] = {}
+            self.last_trade[ex_id] = {}
+            self.stream_history[ex_id] = {}
+            self.transacted_volume[ex_id] = {}
+            self.mkt_closed[ex_id] = False
 
         # Request a wake-up call as in the base Agent.
         super().kernel_starting(start_time)
 
         # Retrieve the global fee config from the kernel's custom properties
-        fee_config = self.kernel.custom_properties.get('withdrawal_fees', {})
+        self.withdrawal_fees = getattr(self.kernel, 'withdrawal_fees', {})
 
-        # Initialise the agent's internal fee map
-        self.withdrawal_fees = {}
-
-        # Find all exchange agents in the simulation
-        all_exchanges = self.kernel.find_agents_by_type(ExchangeAgent)
-
-        # Map the numerical ID of each exchange to its fee structure
-        for exchange in all_exchanges:
-            if exchange.name in fee_config:
-                self.withdrawal_fees[exchange.id] = fee_config[exchange.name]
 
     def kernel_stopping(self) -> None:
         # Always call parent method to be safe.
@@ -795,7 +790,7 @@ class TradingAgent(FinancialAgent):
         Arguments:
             order: The order that has been executed by the exchange.
         """
-
+        # print(f"{self.id}:{self.name} Received notification of execution for {order.order_id} from Exchange {exchange_id} ")
         logger.debug(f"Received notification of execution for {order.order_id} from Exchange {exchange_id} ")
 
         if self.log_orders:
@@ -806,10 +801,9 @@ class TradingAgent(FinancialAgent):
         qty = order.quantity if order.side.is_bid() else -1 * order.quantity
         sym = order.symbol
 
-        if sym in self.holdings_by_exchange[exchange_id]:
-            self.holdings_by_exchange[exchange_id][sym] += qty
-        else:
-            self.holdings_by_exchange[exchange_id][sym] = qty
+        holdings_on_this_exchange = self.holdings_by_exchange[exchange_id]
+        holdings_on_this_exchange[sym] = holdings_on_this_exchange.get(sym, 0) + qty
+
 
         if self.holdings_by_exchange[exchange_id][sym] == 0:
             del self.holdings_by_exchange[exchange_id][sym]
@@ -986,6 +980,23 @@ class TradingAgent(FinancialAgent):
                 self.holdings_by_exchange[to_exchange][symbol] = \
                     self.holdings_by_exchange[to_exchange].get(symbol, 0) + amount_to_receive
 
+    def _complete_transfer(self, to_exchange: int, symbol: str, size: int) -> None:
+        """
+        Callback function executed by the kernel after the transfer_delay.
+        It deposits the in-transit assets into the destination exchange.
+        """
+        # Add the transferred assets to the destination exchange's holdings
+        if to_exchange not in self.holdings_by_exchange:
+            self.holdings_by_exchange[to_exchange] = {}
+        if symbol not in self.holdings_by_exchange[to_exchange]:
+            self.holdings_by_exchange[to_exchange][symbol] = 0
+
+        self.holdings_by_exchange[to_exchange][symbol] += size
+
+        print(f"DEBUG ({self.name}): Transfer complete. {size} shares of {symbol} "
+          f"arrived at Exchange {to_exchange}.")
+
+
     def market_closed(self, exchange_id: int) -> None:
         """
         Handles MarketClosedMsg messages from a specific exchange agent.
@@ -1141,7 +1152,6 @@ class TradingAgent(FinancialAgent):
 
         bids = self.known_bids.get(exchange_id, {}).get(symbol,[])
         asks = self.known_asks.get(exchange_id, {}).get(symbol,[])
-
         if best:
             bid = bids[0][0] if bids else None
             ask = asks[0][0] if asks else None
@@ -1282,6 +1292,13 @@ class TradingAgent(FinancialAgent):
         for exchange_id, holdings in self.holdings_by_exchange.items():
             total_shares += holdings.get(symbol,0)
         return total_shares
+
+    def get_holdings_by_exchange(self, symbol: str, exchange_id: int) -> int:
+        """
+        Safely gets the holdings for a symbol on a specific exchange.
+        Returns 0 if the exchange or symbol is not found.
+        """
+        return self.holdings_by_exchange.get(exchange_id, {}).get(symbol, 0)
 
     def get_known_bid_ask_midpoint(
         self, exchange_id: int, symbol: str
