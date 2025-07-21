@@ -67,11 +67,7 @@ class MeanReversionAgent:
         print(
             f"MeanReversionAgent initialized with obs space: {observation_space.shape} and action space: {action_space.n if hasattr(action_space, 'n') else action_space.shape}")
         print(f"Bollinger Band Parameters: Window={self.window}, Std Devs={self.num_std_dev}")
-        print(
-            "Note: This agent assumes the state structure is (holdings, imbalance, spread, directionFeature, Rk_feature_t).")
-        print(
-            "It relies on 'cash' and 'last_transaction' being available in the info dictionary (requires debug_mode=True).")
-        print("Agent will HOLD until enough price history is accumulated for Bollinger Bands.")
+
 
     def choose_action(self, state, info):
         """
@@ -135,9 +131,9 @@ class MeanReversionAgent:
                 if current_cash >= cost_to_buy:
                     action = 0  # Action: BUY (action ID 0 for BUY in ABIDES)
                     self.position = 1  # Mark that we are now long
-                    # print(f"  MR Agent: BUY signal! Price {current_price:.2f} <= LB {current_lb:.2f}. Cash: {current_cash:.2f}. Cost: {cost_to_buy:.2f}")
+                #     print(f"  MR Agent: BUY signal! Price {current_price:.2f} <= LB {current_lb:.2f}. Cash: {current_cash:.2f}. Cost: {cost_to_buy:.2f}")
                 # else:
-                    # print(f"  MR Agent: BUY signal, but insufficient cash ({current_cash:.2f}) for cost {cost_to_buy:.2f}.")
+                #     print(f"  MR Agent: BUY signal, but insufficient cash ({current_cash:.2f}) for cost {cost_to_buy:.2f}.")
 
 
         elif self.position == 1:  # Agent is currently long (holding shares)
@@ -146,25 +142,22 @@ class MeanReversionAgent:
                 if current_holdings > 0:  # Ensure we actually have shares to sell
                     action = 2  # Action: SELL (close entire position) (action ID 2 for SELL in ABIDES)
                     self.position = 0  # Mark that we are now flat
-                    # print(f"  MR Agent: SELL signal (close long)! Price {current_price:.2f} >= MB {current_mb:.2f}. Holdings: {current_holdings:.2f}.")
+                #     print(f"  MR Agent: SELL signal (close long)! Price {current_price:.2f} >= MB {current_mb:.2f}. Holdings: {current_holdings:.2f}.")
                 # else:
-                    # print(f"  MR Agent: SELL signal, but no holdings to sell.")
+                #     print(f"  MR Agent: SELL signal, but no holdings to sell.")
 
         return action
 
     def update_policy(self, old_state, action, reward, new_state, done):
         """
-        For a rule-based agent, this method typically does not perform learning.
-        It can be used to update internal state variables or log information.
+        No learning for rule-based agent.
         """
-        # No policy learning occurs for a rule-based agent.
         pass
 
     def reset_agent_state(self):
         """Resets the agent's internal state for a new episode."""
         self.price_history = []
         self.position = 0
-        self.initial_cash = 1000000
 
 
 
