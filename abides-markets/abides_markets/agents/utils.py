@@ -1,6 +1,7 @@
 from copy import deepcopy
 from typing import Any, Dict, List, Optional, Tuple
 from ..price_level import PriceLevel
+from collections import defaultdict
 
 
 ################## STATE MANIPULATION ###############################
@@ -86,6 +87,59 @@ def ignore_buffers_decorator(func):
         return func(self, raw_state)
 
     return wrapper_ignore_buffers_decorator
+
+# Multi Exchange function - can be moved to abides-multi-exchange
+def keep_last_by_exchange_decorator(func):
+    """
+    Decorator to process raw_state to keep only the last market data for each exchange.
+
+    This decorator modifies the 'parsed_mkt_data' and 'parsed_volume_data' in the
+    raw_state to ensure that for each exchange_id, only the most recent data entry
+    is retained.
+
+    Args:
+        func (function): The function to be decorated, which takes 'self' and the
+                         processed 'raw_state' as input.
+
+    Returns:
+        function: The wrapped function.
+    """
+    def wrapper_keep_last_by_exchange(self, raw_state):
+        # Create a deep copy to avoid modifying the original raw_state unexpectedly
+        raw_state_copy = deepcopy(raw_state)
+
+        # Process the last element of the raw_state buffer
+        last_state = raw_state_copy[-1]
+
+        # Use defaultdict to store the latest data for each exchange
+        latest_mkt_data = defaultdict(dict)
+        for entry in last_state.get("parsed_mkt_data", []):
+            exchange_id = entry.get("exchange_id")
+            if exchange_id is not None:
+                # This will overwrite older entries for the same exchange_id
+                # as we iterate, leaving only the last one found.
+                latest_mkt_data[exchange_id] = entry
+
+        # The values of the dictionary are the latest data for each exchange
+        processed_mkt_data = list(latest_mkt_data.values())
+
+        # Assuming a similar logic might be needed for volume data if it's structured similarly
+        latest_volume_data = defaultdict(dict)
+        for entry in last_state.get("parsed_volume_data", []):
+            exchange_id = entry.get("exchange_id")
+            if exchange_id is not None:
+                latest_volume_data[exchange_id] = entry
+
+        processed_volume_data = list(latest_volume_data.values())
+
+        # Update the last state with the processed data
+        last_state["parsed_mkt_data"] = processed_mkt_data
+        last_state["parsed_volume_data"] = processed_volume_data
+
+        # The decorated function will receive a list containing only the processed last state
+        return func(self, [last_state])
+
+    return wrapper_keep_last_by_exchange
 
 
 ################# ORDERBOOK PRIMITIVES ######################
