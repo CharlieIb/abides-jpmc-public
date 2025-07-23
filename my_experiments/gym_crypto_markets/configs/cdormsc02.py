@@ -90,7 +90,7 @@ def build_config(
     arbitrage_wake_up_freq="60s",
     arbitrage_min_profit_margin= 1,
     arbitrage_pov=0.35,
-    arbitrage_max_inventory=1000,
+    arbitrage_max_inventory=100000,
 
     # --- Market Maker Agents ---
     # each elem of mm_params is tuple (window_size, pov, num_ticks, wake_up_freq, min_order_size)
@@ -142,6 +142,29 @@ def build_config(
     ]
     num_mm_agents = len(MM_PARAMS)
 
+    # Oracle
+    # This setup uses a single data source, meaning all exchanges share the same
+    # fundamental price series. Arbitrage will come from temporary imbalances.
+    print(" --- Dynamically configuring simulation from daily data ---")
+    try:
+        df = pd.read_csv(data_file_path)
+        daily_mean_price = df['PRICE'].mean()
+        daily_volatility = df['PRICE'].std()
+        print(f"Data for {date}: Mean Price (cents) = {daily_mean_price:.2f}, Volatility = {daily_volatility:.2f}")
+    except FileNotFoundError:
+        print(f"Warning: Data file not found at {data_file_path}. Using default parameters.")
+        daily_mean_price = 1000
+        daily_volatility = 50
+
+    symbols = {ticker: {'data_file': data_file_path}}
+    oracle = DataOracle(MKT_OPEN, MKT_CLOSE, symbols)
+
+    r_bar = int(daily_mean_price)
+    sigma_n = daily_volatility * 0.05
+    kappa = value_kappa
+    lambda_a = value_lambda_a
+    ORDER_SIZE_MODEL = OrderSizeModel()
+
     # Agent configuration
     agent_count, agents, agent_types = 0, [], []
 
@@ -175,34 +198,10 @@ def build_config(
     withdrawal_fees = {}
     if withdrawal_fees_enabled:
         for ex_id in exchange_ids:
-            # Example: fee increases with exchange ID
-            fee = 5 + (ex_id * 2)
+            fee = r_bar * 15
+            # IMPORTANT: adjust this to your simulation parameter, then adjust respective agents
+            # E.G arbitrage agent's strategy will likely highly depend on this.
             withdrawal_fees[ex_id] = {'default': fee, ticker: fee}
-
-
-    # Oracle
-    # This setup uses a single data source, meaning all exchanges share the same
-    # fundamental price series. Arbitrage will come from temporary imbalances.
-    print(" --- Dynamically configuring simulation from daily data ---")
-    try:
-        df = pd.read_csv(data_file_path)
-        daily_mean_price = df['PRICE'].mean()
-        daily_volatility = df['PRICE'].std()
-        print(f"Data for {date}: Mean Price (cents) = {daily_mean_price:.2f}, Volatility = {daily_volatility:.2f}")
-    except FileNotFoundError:
-        print(f"Warning: Data file not found at {data_file_path}. Using default parameters.")
-        daily_mean_price = 1000
-        daily_volatility = 50
-
-    symbols = {ticker: {'data_file': data_file_path}}
-    oracle = DataOracle(MKT_OPEN, MKT_CLOSE, symbols)
-
-    r_bar = int(daily_mean_price)
-    sigma_n = daily_volatility * 0.05
-    kappa = value_kappa
-    lambda_a = value_lambda_a
-    ORDER_SIZE_MODEL = OrderSizeModel()
-
 
     # Value Agents
     agents.extend([
