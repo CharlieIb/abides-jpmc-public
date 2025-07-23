@@ -176,7 +176,7 @@ def build_config(
     if withdrawal_fees_enabled:
         for ex_id in exchange_ids:
             # Example: fee increases with exchange ID
-            fee = 5 + (ex_id * 2)
+            fee = 0 + (ex_id * 2)
             withdrawal_fees[ex_id] = {'default': fee, ticker: fee}
 
 
