@@ -88,8 +88,7 @@ if __name__ == "__main__":
             while not done and step_count < max_steps:
                 # 3. --- Agent Chooses Action ---
                 action = agent.choose_action(state, info)
-                if action != 0:
-                    print(action)
+
                 # 4. --- Environment Takes a Step ---
                 new_state, reward, done, info = env.step(action)
 
