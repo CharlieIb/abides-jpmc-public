@@ -62,7 +62,8 @@ class MeanReversionAgent:
         self.symbol = "ABM"
 
         self.price_history = []  # To store recent absolute prices for band calculation
-        self.position = 0  # 0: No position (flat), 1: Long position
+        self.max_position = 100  # 0: No position (flat), 1: Long position
+        self.stop_loss_pct = 0.05
 
         # Store the order size the environment will use when we send BUY/SELL actions
         self.order_fixed_size = 10  # Default, will be updated from env.unwrapped.order_fixed_size
@@ -138,56 +139,68 @@ class MeanReversionAgent:
         current_ub = upper_band[-1]
         current_lb = lower_band[-1]
 
-        current_cash = info.get("cash")
+        total_holdings = info.get('total_holdings', 0)
+        current_cash = info.get("cash", 0)
         action = 0 # DEFAULT action is HOLD
+        holdings_by_exchange = info.get("holdings_by_exchange", {})
+
 
         # --- Bollinger Band Mean Reversion Trading Logic ---
-        if self.position == 0:  # Agent is currently flat (no position)
-            # Buy Signal: Price crosses below or touches the Lower Band (oversold)
+
+        # House keeping, net offset, if both long and short positions
+        action = self._net_offsetting_inventory(info)
+        if action != 0:
+            return action
+
+
+        # check for exit signals on any existing positions
+        exit_signal_found = False
+        if total_holdings > 0:  # LONG position
+            exchange_with_assets = max(holdings_by_exchange,
+                                       key=lambda ex: holdings_by_exchange[ex].get(self.symbol, 0))
+            # Stop-Loss
+            if global_mid_price <= current_lb * (1 - self.stop_loss_pct):
+                action = 2 + (exchange_with_assets * 2)
+                exit_signal_found = True
+            # Take-Profit
+            elif global_mid_price >= current_mb:
+                action = 2 + (exchange_with_assets * 2)
+                exit_signal_found = True
+
+        elif total_holdings < 0:  # SHORT position
+            exchange_with_assets = min(holdings_by_exchange,
+                                       key=lambda ex: holdings_by_exchange[ex].get(self.symbol, 0))
+            # Stop-Loss
+            if global_mid_price >= current_ub * (1 + self.stop_loss_pct):
+                action = 1 + (exchange_with_assets * 2)  # Buy to cover
+                exit_signal_found = True
+            # Take-Profit
+            elif global_mid_price <= current_mb:
+                action = 1 + (exchange_with_assets * 2)
+                exit_signal_found = True
+
+        # If no exit was triggered, look for entry signals to open or ADD to a position
+        if not exit_signal_found:
+            # Check for BUY signal
             if global_mid_price <= current_lb:
-                # Check if we have enough cash to buy the fixed order size (with a small buffer for fees)
-                cost_to_buy = self.order_fixed_size * best_global_ask
-                if (current_cash is not None and
-                        current_cash >= cost_to_buy and
-                        best_buy_exchange is not None):
+                # Condition: Are we below our max long position?
+                if total_holdings < self.max_position:
+                    buy_size = min(self.order_fixed_size, self.max_position-total_holdings)
+                    cost_to_buy = buy_size * best_global_ask
+                    if buy_size > 0 and current_cash is not None and current_cash >= cost_to_buy:
+                        action = 1 + (best_buy_exchange * 2)  # BUY on cheapest exchange
 
-                    action = (1 + (best_buy_exchange * 2)) # if EX 0 action = 1 if  EX_1 action = 3 this is BUY on respective exchanges
-                    self.position = 1  # agent is now long
-                    print(f"  MR Agent: BUY signal! Price {best_global_ask:.2f} <= LB {current_lb:.2f}. Cash: {current_cash:.2f}. Cost: {cost_to_buy:.2f}")
-                else:
-                    print(f"  MR Agent: BUY signal, but insufficient cash ({current_cash:.2f}) for cost {cost_to_buy:.2f}.")
+            # Check for SELL SHORT signal
+            elif global_mid_price >= current_ub:
+                # Condition: Are we below our max short position (in absolute terms)?
+                if abs(total_holdings) < self.max_position:
+                    sell_size = min(self.order_fixed_size, self.max_position - abs(total_holdings))
+                    if sell_size > 0:
+                        action = 2 + (best_sell_exchange * 2)  # SELL on most expensive exchange
 
-
-        elif self.position == 1:  # Agent is long, looking to SELL
-            if global_mid_price >= current_mb:
-                # Agent's holding structure is determined.
-                # For simplicity, find the exchange with the most shares.
-                holdings_by_exchange = info.get("holdings_by_exchange", {})
-                if not holdings_by_exchange:
-                    return 0  # No holdings to sell
-                exchange_with_assets = max(holdings_by_exchange,
-                                           key=lambda ex: holdings_by_exchange[ex].get(self.symbol, 0))
-
-                # --- Fee structure retrieval ---
-                withdrawal_fees = info.get("withdrawal_fees", {})
-                fee_structure = withdrawal_fees.get(exchange_with_assets, {})
-                fee = fee_structure.get(self.symbol, fee_structure.get('default', 0))
-
-                # --- Transfer cost calculation ---
-                transfer_cost = 0
-                if best_sell_exchange != exchange_with_assets:
-                    transfer_cost = fee
-
-                net_sell_price = best_global_bid - transfer_cost
-
-                # Sell if still attractive
-                if net_sell_price >= current_mb and best_sell_exchange is not None:
-                    action = 2 + (best_sell_exchange * 2)  # SELL on best exchange
-                    self.position = 0
-
-                    print(f"  MR Agent: SELL signal (close long)! Price {best_global_bid:.2f} >= MB {current_mb:.2f}. Holdings: {exchange_with_assets:}.")
-                else:
-                    print(f"  MR Agent: SELL signal, but no holdings to sell.")
+        # If nothing else, consolidate
+        if action == 0 and total_holdings:
+            action = self._consolidate_inventory(info)
 
         return action
 
@@ -202,5 +215,80 @@ class MeanReversionAgent:
         self.price_history = []
         self.position = 0
 
+    def _consolidate_inventory(self, info: dict) -> int:
+        """
+        Checks if assets should be moved from a high-fee exchange to a low-fee one.
+        Returns a TRANSFER action if needed, otherwise returns 0 (HOLD).
+        """
+        holdings_by_exchange = info.get("holdings_by_exchange", {})
+        withdrawal_fees = info.get("withdrawal_fees", {})
 
+        exchanges_with_assets = [
+            ex_id for ex_id, holdings in holdings_by_exchange.items()
+            if holdings.get(self.symbol, 0) > 0
+        ]
+
+        # Check if assets are already consolidated
+        if len(exchanges_with_assets) <= 1:
+            return 0  # HOLD
+
+        exchange_ids = list(range(self.num_exchanges))
+        # "Home Base" is the cheapest exchange
+        cheapest_exchange = min(
+            exchange_ids,
+            key=lambda ex: withdrawal_fees.get(ex, {}).get(self.symbol, float('inf'))
+        )
+
+        most_expensive_source = max(
+            exchanges_with_assets,
+            key=lambda ex: withdrawal_fees.get(ex, {}).get(self.symbol, -1.0)
+        )
+
+        # Transfer from most expensive to cheapest
+        if most_expensive_source != cheapest_exchange:
+            if most_expensive_source == 0 and cheapest_exchange == 1:
+                print(f"  MR Agent (Housekeeping): Consolidating inventory from expensive Ex 0 to cheap Ex 1.")
+                return 6
+            elif most_expensive_source == 1 and cheapest_exchange == 0:
+                print(f"  MR Agent (Housekeeping): Consolidating inventory from expensive Ex 1 to cheap Ex 0.")
+                return 5
+
+        return 0
+
+
+    def _net_offsetting_inventory(self, info: dict) -> int:
+        """
+        Checks for and resolves offsetting long/short positions across exchanges.
+        This is a high-priority risk management action.
+        Returns a TRANSFER action if needed, otherwise returns 0 (HOLD).
+        """
+
+        holdings_by_exchange = info.get("holdings_by_exchange", {})
+
+        long_exchanges = {ex: h.get(self.symbol, 0) for ex, h in holdings_by_exchange.items() if h.get(self.symbol, 0) > 0}
+        short_exchanges = {ex: h.get(self.symbol, 0) for ex, h in holdings_by_exchange.items() if h.get(self.symbol, 0) < 0}
+
+        # If we have both a long and a short position somewhere, we need to net them.
+        if long_exchanges and short_exchanges:
+            # Find the largest long and largest short positions to resolve first.
+            from_exchange = max(long_exchanges, key=long_exchanges.get)
+            to_exchange = min(short_exchanges, key=short_exchanges.get)
+
+            # The amount to transfer is the smaller of the two positions to close one leg out.
+            transfer_size = min(long_exchanges[from_exchange], abs(short_exchanges[to_exchange]))
+
+            if transfer_size > 0:
+                # This logic assumes a 2-exchange setup with actions:
+                # 5: TRANSFER_FROM_0_TO_1
+                # 6: TRANSFER_FROM_1_TO_0
+                if from_exchange == 0 and to_exchange == 1:
+                    print(
+                        f"  MR Agent (Netting): Transferring {transfer_size} shares from Ex 0 to Ex 1 to flatten position.")
+                    return 6
+                elif from_exchange == 1 and to_exchange == 0:
+                    print(
+                        f"  MR Agent (Netting): Transferring {transfer_size} shares from Ex 1 to Ex 0 to flatten position.")
+                    return 5
+
+        return 0
 
