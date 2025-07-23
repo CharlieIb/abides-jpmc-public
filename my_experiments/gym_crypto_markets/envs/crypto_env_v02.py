@@ -134,8 +134,9 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
 
         # --- Action Space ---
         # The action space is now (2 * num_exchanges) + 1 to account for
-        # BUY/SELL on each exchange, plus a single HOLD action.
-        self.num_actions: int = (self.num_exchanges * 2) + 1
+        # TFR between each pair, BUY/SELL on each exchange, plus a single HOLD action.
+        # TFR = E(E-1), BUY/SELL = 2E and HOLD = 1, therefore together = E^2 + E + 1
+        self.num_actions: int = (self.num_exchanges)**2 + self.num_exchanges + 1
         self.action_space: gym.Space = gym.spaces.Discrete(self.num_actions)
 
         # --- Observation Space ---
@@ -223,8 +224,8 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         elif action == 5:
             return [{
                 "type": "TFR",
-                "from_exchange": 0,
-                "to_exchange": 1,
+                "from_exchange": 1,
+                "to_exchange": 0,
                 "size": self.order_fixed_size,
             }]
 
@@ -233,8 +234,8 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         elif action == 6:
             return [{
                 "type": "TFR",
-                "from_exchange": 1,
-                "to_exchange": 0,
+                "from_exchange": 0,
+                "to_exchange": 1,
                 "size": self.order_fixed_size,
             }]
 
