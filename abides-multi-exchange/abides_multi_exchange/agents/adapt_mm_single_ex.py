@@ -168,6 +168,8 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         self.quoting_cycle_start_time = self.current_time
 
         self.state = self.initialise_state()
+        # print(
+        #     f"DEBUG ({self.name} @ {self.current_time}): sending messages to Exchange {self.exchange_id}.")
         self.get_current_spread(self.exchange_id, self.symbol)
         self.get_transacted_volume(self.exchange_id, self.symbol, lookback_period=self.wake_up_freq)
 
@@ -185,10 +187,10 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         if isinstance(message, BookImbalanceDataMsg):
             # This message is a trigger to requote the market.
             if not self.is_quoting:
-                print(f"DEBUG ({self.name}): Imbalance alert received. Starting new quote cycle.")
+                # print(f"DEBUG ({self.name}): Imbalance alert received. Starting new quote cycle.")
                 self.start_quoting_cycle()
-            else:
-                print(f"DEBUG ({self.name}): Imbalance alert received, but already quoting. Ignoring.")
+            # else:
+            #     print(f"DEBUG ({self.name}): Imbalance alert received, but already quoting. Ignoring.")
             return
 
         if not self.is_quoting:
@@ -210,7 +212,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
                     self._adaptive_update_spread(int(ask - bid))
             self.state["AWAITING_SPREAD"] = False
             # print(
-            #     f"DEBUG ({self.name}): Processed spread for Exchange {sender_id}. State: {self.state}")
+            #     f"DEBUG ({self.name}): Processed spread for Exchange {sender_id}. Last mid: {self.last_mid} State: {self.state}")
 
         # If all data is received, place orders
         if not self.state["AWAITING_SPREAD"] and not self.state["AWAITING_TRANSACTED_VOLUME"]:
@@ -218,8 +220,8 @@ class AdaptiveMarketMakerAgent(TradingAgent):
                 # print(
                 #     f"DEBUG ({self.name}): All data received for Exchange {sender_id}. Attempting to place orders.")
                 self.place_orders(self.exchange_id, self.last_mid)
-            else:
-                print(f"DEBUG ({self.name}): Cannot place orders for Exchange {sender_id}, mid-price is missing.")
+            # else:
+            #     print(f"DEBUG ({self.name}): Cannot place orders for Exchange {sender_id}, mid-price is missing.")
             self.set_wakeup(current_time + self.get_wake_frequency())
             self.is_quoting = False
 
@@ -261,9 +263,9 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             buy_size = floor((1 - proportion_sell) * qty)
             self.buy_order_size = buy_size if buy_size >= self.min_order_size else self.min_order_size
             self.sell_order_size = sell_size if sell_size >= self.min_order_size else self.min_order_size
-            if self.buy_order_size > 1 or self.sell_order_size > 1:
-                print(
-                    f"DEBUG ({self.name} for Ex {self.exchange_id}): Final order sizes -> BUY: {self.buy_order_size}, SELL: {self.sell_order_size}")
+            # if self.buy_order_size > 1 or self.sell_order_size > 1:
+            #     print(
+            #         f"DEBUG ({self.name} for Ex {self.exchange_id}): Final order sizes -> BUY: {self.buy_order_size}, SELL: {self.sell_order_size}")
     def compute_orders_to_place(self, mid: int) -> Tuple[List[int], List[int]]:
         """Computes the ladder of orders for a specific exchange."""
         mid_point = mid
@@ -336,7 +338,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
             # print(f"DEBUG ({self.name}): Placing {len(valid_orders)} orders on Exchange {exchange_id}.")
             self.place_multiple_orders(exchange_id, valid_orders)
         # else:
-            # print(f"DEBUG ({self.name}): No valid orders to place on Exchange {exchange_id}.")
+        #     print(f"DEBUG ({self.name}): No valid orders to place on Exchange {exchange_id}.")
 
     def validate_anchor(self, anchor: str) -> str:
         if anchor not in [ANCHOR_TOP_STR, ANCHOR_BOTTOM_STR, ANCHOR_MIDDLE_STR]:
