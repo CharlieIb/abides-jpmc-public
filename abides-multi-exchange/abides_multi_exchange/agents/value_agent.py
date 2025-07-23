@@ -212,6 +212,7 @@ class ValueAgent(TradingAgent):
         """
         # 1. Get the agent's estimate of the fundamental value.
         # print(f"DEBUG ({self.name}): Inside analyze_and_place_order.")
+        bootstrapping = False
         r_T = self.updateEstimates()
 
         # 2. Find the single best bid and ask price across all exchanges.
@@ -253,13 +254,23 @@ class ValueAgent(TradingAgent):
                     adjust_int = 0
                 limit_price = baseline_price + adjust_int if side == Side.ASK else baseline_price - adjust_int
         else:
+            bootstrapping = True
             # print(f"DEBUG ({self.name}): Analysis complete. No valid spread found. BOOTSTRAPPING the market")
             # CRITICAL LOGIC: Market is empty, bootstrap it!
             logger.debug(f"{self.name} found an empty market. Bootstrapping with a single order.")
-            side = Side.BID if self.random_state.rand() < 0.5 else Side.ASK
-            limit_price = r_T  # Place the order at our fundamental valuation.
-            # Pick a random exchange to place the seed order on.
-            target_exchange = self.random_state.choice(self.exchange_ids)
+            # Place the orders at the fundamental value with spread
+            init_fund = r_T
+            spread_delta = 5
+            seed_order_size = 100
+
+            bid_price = init_fund - spread_delta
+            ask_price = init_fund + spread_delta
+
+            for ex_id in self.exchange_ids:
+                self.place_limit_order(ex_id, self.symbol, seed_order_size, Side.BID, bid_price)
+                self.place_limit_order(ex_id, self.symbol, seed_order_size, Side.ASK, ask_price)
+
+            print(f"Bootstrapping all exchanges")
 
         # print(f"DEBUG ({self.name}): Analysis complete. Best Bid: {best_global_bid} (Ex {best_bid_exchange}), Best Ask: {best_global_ask} (Ex {best_ask_exchange}). r_T: {r_T}")
 
@@ -269,7 +280,7 @@ class ValueAgent(TradingAgent):
         if self.order_size_model is not None:
             self.size = self.order_size_model.sample(random_state=self.random_state)
 
-        if self.size > 0:
+        if self.size > 0 and not bootstrapping:
             # print(f"DEBUG ({self.name}): PLACING ORDER -> {side.value} {self.size} on Ex {target_exchange} @ {limit_price}")
             logger.debug(
                 f"{self.name} placing {side.value} order for {self.size} on exchange {target_exchange} at price {limit_price}")
