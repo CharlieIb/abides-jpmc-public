@@ -16,6 +16,7 @@ from abides_markets.messages.marketdata import (
     TransactedVolSubReqMsg,
 )
 from abides_markets.orders import Order, Side
+from abides_multi_exchange.messages import CompleteTransferMsg
 
 
 class CoreBackgroundAgent(TradingAgent):
@@ -191,17 +192,23 @@ class CoreBackgroundAgent(TradingAgent):
                 self.cash -= withdrawal_fee
                 self.holdings_by_exchange[from_ex][self.symbol] -= size
 
+                # Creates a random transfer delay between specified amounts
+                transfer_delay = self._get_random_transfer_delay()
+
                 print(f"DEBUG ({self.name}): Initiating transfer of {size} shares from Ex {from_ex} to {to_ex}. "
-                      f"Fee: {withdrawal_fee}")
+                      f"Fee: {withdrawal_fee}, Delay: {transfer_delay/(60*1_000_000_000)} min(s)")
 
                 # 3. Schedule the completion of the transfer after a delay
-                self.kernel.schedule_event(
-                    self.current_time + self.transfer_delay,
-                    self,
-                    "_complete_transfer",
-                    to_ex,
-                    self.symbol,
-                    size
+                completion_msg = CompleteTransferMsg(
+                    to_exchange=to_ex,
+                    symbol=self.symbol,
+                    size=size
+                )
+
+                self.send_message(
+                    recipient_id=self.id,
+                    message=completion_msg,
+                    delay=transfer_delay
                 )
 
             elif action_type == "CCL_ALL":

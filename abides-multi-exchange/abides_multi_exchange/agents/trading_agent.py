@@ -46,6 +46,7 @@ from abides_markets.messages.query import (
 from abides_markets.orders import Order, LimitOrder, MarketOrder, Side
 from abides_markets.agents.financial_agent import FinancialAgent
 from abides_markets.agents.exchange_agent import ExchangeAgent
+from abides_multi_exchange.messages import CompleteTransferMsg
 
 logger = logging.getLogger(__name__)
 
@@ -158,6 +159,12 @@ class TradingAgent(FinancialAgent):
         self.mkt_closed: Dict[int, bool] = {}
 
         self.book: Dict[int, str] = {}
+
+        # Transfer delay specification
+        self.min_transfer_delay_minutes: int = 5
+        self.max_transfer_delay_minutes: int = 70
+        self.transfer_delay_alpha: int = 5
+        self.transfer_delay_beta: int = 14.5
 
         # Store the exchange IDs
         if exchange_id is None:
@@ -335,6 +342,15 @@ class TradingAgent(FinancialAgent):
             # We've tried to ask the exchange for something after it closed.  Remember this
             # so we stop asking for things that can't happen.
             self.market_closed(sender_id)
+
+        elif isinstance(message, CompleteTransferMsg):
+            # Call the _complete transfer method
+            self._complete_transfer(
+                to_exchange=message.to_exchange,
+                symbol=message.symbol,
+                size=message.size
+            )
+            return
 
         elif isinstance(message, OrderExecutedMsg):
             # Call the order_executed method, which subclasses should extend.  This parent
@@ -980,6 +996,20 @@ class TradingAgent(FinancialAgent):
                 self.holdings_by_exchange[to_exchange][symbol] = \
                     self.holdings_by_exchange[to_exchange].get(symbol, 0) + amount_to_receive
 
+    def _get_random_transfer_delay(self) -> NanosecondTime:
+        """
+        Generates a random transfer delay skewed by a Beta distribution.
+        """
+        sample = self.random_state.beta(self.transfer_delay_alpha, self.transfer_delay_beta)
+
+        delay_range = self.max_transfer_delay_minutes - self.min_transfer_delay_minutes
+        delay_minutes = self.min_transfer_delay_minutes + sample * delay_range
+        delay_ns = int(delay_minutes * 60 * 1_000_000_000)
+
+        logger.debug(f"Generated random transfer delay of ~{delay_minutes:.2f} minutes ({delay_ns} ns)")
+        # Convert to nanoseconds and return as an integer
+        return int(delay_minutes * 60 * 1_000_000_000)
+
     def _complete_transfer(self, to_exchange: int, symbol: str, size: int) -> None:
         """
         Callback function executed by the kernel after the transfer_delay.
@@ -993,6 +1023,7 @@ class TradingAgent(FinancialAgent):
 
         self.holdings_by_exchange[to_exchange][symbol] += size
 
+        self.logEvent("TRANSFER_COMPLETE", f"{size} shares of {symbol} arrived at Exchange {to_exchange}")
         print(f"DEBUG ({self.name}): Transfer complete. {size} shares of {symbol} "
           f"arrived at Exchange {to_exchange}.")
 
