@@ -247,10 +247,10 @@ class MeanReversionAgent:
         # Transfer from most expensive to cheapest
         if most_expensive_source != cheapest_exchange:
             if most_expensive_source == 0 and cheapest_exchange == 1:
-                print(f"  MR Agent (Housekeeping): Consolidating inventory from expensive Ex 0 to cheap Ex 1.")
+                # print(f"  MR Agent (Housekeeping): Consolidating inventory from expensive Ex 0 to cheap Ex 1.")
                 return 6
             elif most_expensive_source == 1 and cheapest_exchange == 0:
-                print(f"  MR Agent (Housekeeping): Consolidating inventory from expensive Ex 1 to cheap Ex 0.")
+                # print(f"  MR Agent (Housekeeping): Consolidating inventory from expensive Ex 1 to cheap Ex 0.")
                 return 5
 
         return 0
@@ -283,11 +283,11 @@ class MeanReversionAgent:
                 # 6: TRANSFER_FROM_1_TO_0
                 if from_exchange == 0 and to_exchange == 1:
                     print(
-                        f"  MR Agent (Netting): Transferring {transfer_size} shares from Ex 0 to Ex 1 to flatten position.")
+                        f"  MR Agent (Netting): Transferring from Ex 0 to Ex 1 to flatten position.")
                     return 6
                 elif from_exchange == 1 and to_exchange == 0:
                     print(
-                        f"  MR Agent (Netting): Transferring {transfer_size} shares from Ex 1 to Ex 0 to flatten position.")
+                        f"  MR Agent (Netting): Transferring shares from Ex 1 to Ex 0 to flatten position.")
                     return 5
 
         return 0
