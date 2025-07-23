@@ -72,7 +72,7 @@ def build_config(
     num_momentum_agents=35,
     num_arbitrage_agents=5,
     # num_mm_agents = defined below
-    num_noise_agents=2000,
+    num_noise_agents=10000,
 
     # --- Value Agent Parameters ---
     value_kappa=1.67e-15, # appraisal of mean reversion
@@ -82,15 +82,15 @@ def build_config(
     momentum_min_size=1,
     momentum_max_size=10,
     momentum_poisson_arrival=True,
-    momentum_wake_up_freq="37s", # TODO: Consider changing this to a poisson distribution
+    momentum_wake_up_freq="37s",
     momentum_subscribe=False,   # Explicitly set to polling mode
 
 
     # --- Arbitrage Agents
     arbitrage_wake_up_freq="60s",
-    arbitrage_min_profit_margin=1,
-    arbitrage_pov=0.01,
-    arbitrage_max_inventory=100,
+    arbitrage_min_profit_margin= 1,
+    arbitrage_pov=0.35,
+    arbitrage_max_inventory=1000,
 
     # --- Market Maker Agents ---
     # each elem of mm_params is tuple (window_size, pov, num_ticks, wake_up_freq, min_order_size)
@@ -176,7 +176,7 @@ def build_config(
     if withdrawal_fees_enabled:
         for ex_id in exchange_ids:
             # Example: fee increases with exchange ID
-            fee = 0 + (ex_id * 2)
+            fee = 5 + (ex_id * 2)
             withdrawal_fees[ex_id] = {'default': fee, ticker: fee}
 
 
