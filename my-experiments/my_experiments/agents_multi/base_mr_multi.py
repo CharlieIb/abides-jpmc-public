@@ -1,9 +1,6 @@
-import gym
-from tqdm import tqdm
 import numpy as np
 
 # Import to register environments
-import abides_gym
 import gym_crypto_markets
 
 
