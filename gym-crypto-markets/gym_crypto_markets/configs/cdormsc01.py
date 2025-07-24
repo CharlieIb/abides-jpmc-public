@@ -104,7 +104,7 @@ def build_config(
     # Construct the file path based on the date parameter
     # Important: Assumes your scaled data is in this location
 
-    data_file_path = f"/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/my_experiments/gym_crypto_markets/data/test/BTCUSDT-trades-2025-06-11-1s.csv"
+    data_file_path = f"/data/test/BTCUSDT-trades-2025-06-11-1s.csv"
 
     try:
         df = pd.read_csv(data_file_path)

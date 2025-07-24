@@ -11,7 +11,7 @@ Character -
 """
 import os
 from datetime import datetime
-
+from typing import Dict
 import numpy as np
 import pandas as pd
 
@@ -27,7 +27,7 @@ from abides_multi_exchange.agents import (
     ArbitrageAgent
 )
 from abides_markets.models import OrderSizeModel
-from oracle import DataOracle
+from ..oracle import DataOracle
 from abides_markets.utils import generate_latency_model
 
 
@@ -35,78 +35,45 @@ from abides_markets.utils import generate_latency_model
 ############################################### GENERAL CONFIG #########################################################
 
 
-def build_config(
-        # --- General Simulation Parameters ---
-    seed=int(datetime.now().timestamp() * 1_000_000) % (2**32 - 1),
-    date="20250611",
-    mkt_open_time="00:10:00",
-    end_time="23:59:59",
-    stdout_log_level="INFO",
-    ticker="ABM",
-    starting_cash=1_000_000,  # Cash in this simulator is always in CENTS.
-
-    # --- Log orders: Individual agent logs ---
-    # These must be None or True (False will yield True)
-    log_orders_value=True,
-    log_orders_momentum=True,
-    log_orders_arbitrage=True,
-    log_orders_MM=True,
-    log_orders_noise=None,
-    log_orders=False,
-
-    # --- Exchange Agent Parameters ---
-    num_exchange_agents=2,
-    book_logging=True,
-    book_log_depth=10,
-    stream_history_length=500,
-    exchange_log_orders=True, # overall market logs and file creation
-
-    # --- Data Oracle Parameters ---
-    data_file_path="/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/my_experiments/gym_crypto_markets/data/test/BTCUSDT-trades-2025-06-11-1s.csv",
-
-    # --- Withdrawal Fee Parameters ---
-    withdrawal_fees_enabled=True,
-
-    # --- Population Parameters ---
-    num_value_agents=100,
-    num_momentum_agents=35,
-    num_arbitrage_agents=5,
-    # num_mm_agents = defined below
-    num_noise_agents=10000,
-
-    # --- Value Agent Parameters ---
-    value_kappa=1.67e-15, # appraisal of mean reversion
-    value_lambda_a=5.7e-12,  # arrival rate
-
-    # --- Momentum Agent Parameters ---
-    momentum_min_size=1,
-    momentum_max_size=10,
-    momentum_poisson_arrival=True,
-    momentum_wake_up_freq="37s",
-    momentum_subscribe=False,   # Explicitly set to polling mode
-
-
-    # --- Arbitrage Agents
-    arbitrage_wake_up_freq="60s",
-    arbitrage_min_profit_margin= 1,
-    arbitrage_pov=0.35,
-    arbitrage_max_inventory=100000,
-
-    # --- Market Maker Agents ---
-    # each elem of mm_params is tuple (window_size, pov, num_ticks, wake_up_freq, min_order_size)
-    mm_wake_up_freq="60s",
-    mm_window_size="adaptive",
-    mm_pov=0.025,
-    mm_num_ticks=20, # Doubled from baseline, as BTCUSDT spreads are wider than stocks due ot higher volatility
-    mm_min_order_size=1,
-    mm_skew_beta=0.1, # Was zero and tends to impact inventory risk aversion (don't kno why this was zero)
-    mm_price_skew=6, # response to momentum agents, able to shift response to momentum in market
-    mm_level_spacing=7, # Increase to create less dense OB with larger gaps between price levels  as you would expect to see in crypto
-    mm_spread_alpha=0.85, # Increased from baseline of 0.75, BTC tends to be more sensitive to volatility widening spreads
-    mm_backstop_quantity=0,
-    mm_cancel_limit_delay=50,  # 50 nanoseconds
-):
+def build_config(params: Dict):
     # fix seed
+    seed = int(datetime.now().timestamp() * 1_000_000) % (2 ** 32 - 1)
+    np.random.seed(seed)
+
+    # --- 1. Extract Parameters from the Dictionary ---
+    date = params['date']
+    mkt_open_time = params['mkt_open_time']
+    end_time = params['end_time']
+    ticker = params['ticker']
+    starting_cash = params['starting_cash']
+
+    log_order_params = params['log_order_params']
+    log_orders_value = log_order_params['log_orders_value']
+    log_orders_momentum = log_order_params['log_orders_momentum']
+    log_orders_arbitrage = log_order_params['log_orders_arbitrage']
+    log_orders_MM = log_order_params['log_orders_MM']
+    log_orders_noise = log_order_params['log_orders_noise']
+    log_orders = log_order_params['log_orders']
+
+    # Exchange Agent parameters
+    exchange_params = params['exchange_params']
+    num_exchange_agents = exchange_params['num_exchange_agents']
+
+    # Agent Populations
+    agent_populations = params['agent_populations']
+    num_value_agents = agent_populations['num_value_agents']
+    num_momentum_agents = agent_populations['num_momentum_agents']
+    num_arbitrage_agents = agent_populations['num_arbitrage_agents']
+    num_noise_agents = agent_populations['num_noise_agents']
+
+    # Agent Parameters
+    value_params = params['value_params']
+    momentum_params = params['momentum_params']
+    arbitrage_params = params['arbitrage_params']
+    mm_params = params['mm_params']
+
+
+    # Set the seed for reproducibility
     np.random.seed(seed)
 
 
@@ -124,6 +91,7 @@ def build_config(
         else:
             return pomegranate_model_json
 
+
     # --- Date and Time ---
     DATE = int(pd.to_datetime(date).to_datetime64())
     MKT_OPEN = DATE + str_to_ns(f"{mkt_open_time}")
@@ -136,8 +104,8 @@ def build_config(
 
     # ---- MM PARAMS -------
     MM_PARAMS = [
-        (mm_window_size, mm_pov, mm_num_ticks, mm_wake_up_freq, mm_min_order_size),
-        (mm_window_size, mm_pov, mm_num_ticks, mm_wake_up_freq, mm_min_order_size),
+        (mm_params['window_size'], mm_params['pov'], mm_params['num_ticks'], mm_params['wake_up_freq'], mm_params['min_order_size']),
+        (mm_params['window_size'], mm_params['pov'], mm_params['num_ticks'], mm_params['wake_up_freq'], mm_params['min_order_size']),
         # You could add more tuples here for more MMs with different strategies
     ]
     num_mm_agents = len(MM_PARAMS)
@@ -146,6 +114,7 @@ def build_config(
     # This setup uses a single data source, meaning all exchanges share the same
     # fundamental price series. Arbitrage will come from temporary imbalances.
     print(" --- Dynamically configuring simulation from daily data ---")
+    data_file_path = params['data_file_path']
     try:
         df = pd.read_csv(data_file_path)
         daily_mean_price = df['PRICE'].mean()
@@ -161,8 +130,8 @@ def build_config(
 
     r_bar = int(daily_mean_price)
     sigma_n = daily_volatility * 0.05
-    kappa = value_kappa
-    lambda_a = value_lambda_a
+    kappa = value_params['kappa']
+    lambda_a = value_params['lambda_a']
     ORDER_SIZE_MODEL = OrderSizeModel()
 
     # Agent configuration
@@ -177,12 +146,12 @@ def build_config(
             mkt_open=MKT_OPEN,
             mkt_close=MKT_CLOSE,
             symbols=[ticker],
-            book_logging=book_logging,
-            book_log_depth=book_log_depth,
-            log_orders=exchange_log_orders,
+            book_logging=exchange_params['book_logging'],
+            book_log_depth=exchange_params['book_log_depth'],
+            log_orders=exchange_params['exchange_log_orders'],
             pipeline_delay=0,
             computation_delay=0,
-            stream_history=stream_history_length,
+            stream_history=exchange_params['stream_history_length'],
             random_state=np.random.RandomState(
                 seed=np.random.randint(low=0, high=2**32, dtype="uint64")
             ),
@@ -196,7 +165,7 @@ def build_config(
 
     # Dynamically create the fee structure based on the number of exchanges.
     withdrawal_fees = {}
-    if withdrawal_fees_enabled:
+    if params.get('withdrawal_fees_enabled', False):
         for ex_id in exchange_ids:
             fee = r_bar * 15
             # IMPORTANT: adjust this to your simulation parameter, then adjust respective agents
@@ -221,10 +190,10 @@ def build_config(
     agents.extend([
         MomentumAgent(
             id=j, name=f"MOMENTUM_AGENT_{j}", type="MomentumAgent", symbol=ticker,
-            starting_cash=starting_cash, min_size=momentum_min_size, max_size=momentum_max_size,
-            poisson_arrival=momentum_poisson_arrival, wake_up_freq=str_to_ns(momentum_wake_up_freq),
+            starting_cash=starting_cash, min_size=momentum_params['min_size'], max_size=momentum_params['max_size'],
+            poisson_arrival=momentum_params['poisson_arrival'], wake_up_freq=str_to_ns(momentum_params['wake_up_freq']),
             log_orders=log_orders_momentum, order_size_model=ORDER_SIZE_MODEL,
-            subscribe=momentum_subscribe,
+            subscribe=momentum_params['subscribe'],
             exchange_ids=exchange_ids,  # Connect to all exchanges
             random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
         )
@@ -237,8 +206,8 @@ def build_config(
     agents.extend([
         ArbitrageAgent(
             id=j, name=f"Arbitrage Agent {j}", type="ArbitrageAgent", symbol=ticker,
-            starting_cash=starting_cash, wake_up_freq=str_to_ns(arbitrage_wake_up_freq),
-            pov=arbitrage_pov, max_inventory=arbitrage_max_inventory, min_profit_margin=arbitrage_min_profit_margin,
+            starting_cash=starting_cash, wake_up_freq=str_to_ns(arbitrage_params['wake_up_freq']),
+            pov=arbitrage_params['pov'], max_inventory=arbitrage_params['max_inventory'], min_profit_margin=arbitrage_params['min_profit_margin'],
             log_orders=log_orders_arbitrage,
             exchange_ids=exchange_ids,  # Must connect to all exchanges
             random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
@@ -258,9 +227,9 @@ def build_config(
                 random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
                 log_orders=log_orders_MM,  poisson_arrival=True,window_size=MM_PARAMS[i][0],
                 pov=MM_PARAMS[i][1], num_ticks=MM_PARAMS[i][2], wake_up_freq=MM_PARAMS[i][3],
-                min_order_size=MM_PARAMS[i][4], skew_beta=mm_skew_beta, price_skew_param=mm_price_skew,
-                level_spacing=mm_level_spacing, spread_alpha=mm_spread_alpha,
-                backstop_quantity=mm_backstop_quantity, cancel_limit_delay=mm_cancel_limit_delay,
+                min_order_size=MM_PARAMS[i][4], skew_beta=mm_params['skew_beta'], price_skew_param=mm_params['price_skew'],
+                level_spacing=mm_params['level_spacing'], spread_alpha=mm_params['spread_alpha'],
+                backstop_quantity=mm_params['backstop_quantity'], cancel_limit_delay=mm_params['cancel_limit_delay'],
             )
         )
     agent_count += num_mm_agents
@@ -286,7 +255,7 @@ def build_config(
     )
     # LATENCY
     latency_model = generate_latency_model(agent_count)
-    default_computation_delay = 50  # 50 nanoseconds
+    default_computation_delay = params['default_computation_delay']  # 50 nanoseconds
 
     # Final kernel configuration
     kernelStartTime = DATE + str_to_ns("00:00:00")
@@ -303,7 +272,7 @@ def build_config(
         "default_computation_delay": default_computation_delay,
         "custom_properties": {"oracle": oracle, "withdrawal_fees": withdrawal_fees},
         "random_state_kernel": random_state_kernel,
-        "stdout_log_level": stdout_log_level,
+        "stdout_log_level": params['stdout_log_level'],
         "skip_log" : False,
         "num_exchange_agents" : num_exchange_agents,
     }

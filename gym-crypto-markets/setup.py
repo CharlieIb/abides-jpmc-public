@@ -12,10 +12,5 @@ setup(
         'abides-gym',
         'abides-markets',
         'abides-multi-exchange',
-    ],
-    entry_points={
-        'gym.envs': [
-            'crypto_env-v01 = gym_crypto_markets.envs.crypto_env_v01:SubGymMarketsCryptoDailyInvestorEnv_v01',
-        ]
-    }
+    ]
 )
