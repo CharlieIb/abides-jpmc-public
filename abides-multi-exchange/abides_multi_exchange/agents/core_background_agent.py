@@ -196,7 +196,7 @@ class CoreBackgroundAgent(TradingAgent):
                 transfer_delay = self._get_random_transfer_delay()
 
                 print(f"DEBUG ({self.name}): Initiating transfer of {size} shares from Ex {from_ex} to {to_ex}. "
-                      f"Fee: {withdrawal_fee}, Delay: {transfer_delay/(60*1_000_000_000)} min(s)")
+                      f"Fee: ${withdrawal_fee/100:.2f}, Delay: {transfer_delay/(60*1_000_000_000):.2f} min(s)")
 
                 # 3. Schedule the completion of the transfer after a delay
                 completion_msg = CompleteTransferMsg(
