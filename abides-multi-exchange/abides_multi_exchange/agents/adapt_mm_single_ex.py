@@ -232,11 +232,11 @@ class AdaptiveMarketMakerAgent(TradingAgent):
         """Updates spread estimate for a specific exchange."""
         spread_ewma = self.spread_alpha * spread + (1 - self.spread_alpha) * self.last_spread
 
-        if spread > 5.0:
-            print(f"DEBUG ({self.name}): Adaptive spread update. "
-                  f"Old Spread: {self.last_spread:.2f}, "
-                  f"Current Spread: {spread}, "
-                  f"New Spread (Window): {spread_ewma:.2f}")
+        # if spread > 5.0:
+        #     print(f"DEBUG ({self.name}): Adaptive spread update. "
+        #           f"Old Spread: {self.last_spread:.2f}, "
+        #           f"Current Spread: {spread}, "
+        #           f"New Spread (Window): {spread_ewma:.2f}")
 
         self.window_size = spread_ewma
         self.last_spread = spread_ewma
