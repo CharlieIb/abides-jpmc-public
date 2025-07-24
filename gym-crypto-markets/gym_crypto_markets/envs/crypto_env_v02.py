@@ -1,5 +1,5 @@
 import importlib
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Union
 from collections import deque
 
 import gym
@@ -10,7 +10,7 @@ from abides_core import NanosecondTime
 from abides_core.utils import str_to_ns
 from abides_core.generators import ConstantTimeGenerator
 
-from gym_crypto_markets.envs.markets_environment import AbidesGymMarketsEnv
+from .markets_environment import AbidesGymMarketsEnv
 
 
 class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
@@ -31,7 +31,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
 
     def __init__(
             self,
-            background_config: str = "cdormsc02",
+            background_config: Union[str, Dict] = "cdormsc02",
             mkt_close: str = "23:59:59",
             timestep_duration: str = "60s",
             starting_cash: int = 1_000_000,
@@ -44,10 +44,38 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             debug_mode: bool = False,
             background_config_extra_kvargs={}
     ) -> None:
-        self.background_config_module: Any = importlib.import_module(f"gym_crypto_markets.configs.{background_config}")
-        background_config_args = {"end_time": mkt_close}
-        background_config_args.update(background_config_extra_kvargs)
-        self.config = self.background_config_module.build_config(**background_config_args)
+
+        # Handle both config types (dict or str) Dict for yaml jobs and str from traditional execution
+        config_callable = None
+        config_args = {"end_time": mkt_close}
+        config_args.update(background_config_extra_kvargs)
+
+        if isinstance(background_config, str):
+            # If a string is passed, import it as a module name (the old way).
+            assert background_config in [
+                "cdormsc01", "cdormsc02"
+            ], "Select one of cdormsc01, cdormsc02 as config"
+            config_module = importlib.import_module(f"gym_crypto_markets.configs.{background_config}")
+            config_callable = config_module.build_config
+            self.config = config_callable(**config_args)
+
+
+
+        elif isinstance(background_config, dict):
+            # If a dictionary is passed, use it directly (the new, flexible way).
+            print("INFO: Using pre-built dictionary for background_config.")
+            self.config = background_config
+            # The parent class expects a function, so we create a simple lambda
+            # that just returns our pre-built dictionary.
+            config_callable = lambda **kwargs: self.config
+            config_args = {}
+        else:
+            raise TypeError(f"background_config must be a string or a dict, but got {type(background_config)}")
+
+        # self.background_config_module: Any = importlib.import_module(f"gym_crypto_markets.configs.{background_config}")
+        # background_config_args = {"end_time": mkt_close}
+        # background_config_args.update(background_config_extra_kvargs)
+        # self.config = self.background_config_module.build_config(**background_config_args)
         self.num_exchanges = self.config.get("num_exchange_agents", 1)
         self.mkt_open: NanosecondTime = self.config.get("mkt_open", str_to_ns("00:10:00"))
         self.mkt_close: NanosecondTime = str_to_ns(mkt_close)
@@ -72,9 +100,6 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         self.down_done_condition: float = self.done_ratio * starting_cash
 
         # CHECK PROPERTIES
-        assert background_config in [
-            "cdormsc01", "cdormsc02"
-        ], "Select one of cdormsc01, cdormsc02 as config"
 
         assert (self.first_interval <= str_to_ns("16:00:00")) & (
                 self.first_interval >= str_to_ns("00:00:00")
@@ -124,7 +149,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         background_config_args = {"end_time": self.mkt_close}
         background_config_args.update(background_config_extra_kvargs)
         super().__init__(
-            background_config_pair=(self.background_config_module.build_config, background_config_args),
+            background_config_pair=(config_callable, config_args),
             wakeup_interval_generator=ConstantTimeGenerator(step_duration=self.timestep_duration),
             starting_cash=self.starting_cash,
             state_buffer_length=self.state_history_length,  # Now using the instance attribute
