@@ -26,7 +26,7 @@ from abides_multi_exchange.agents import (
     MomentumAgent,
     ArbitrageAgent
 )
-from abides_markets.models import OrderSizeModel
+from ..models import OrderSizeModel
 from ..oracle import DataOracle
 from abides_markets.utils import generate_latency_model
 
@@ -132,7 +132,11 @@ def build_config(params: Dict):
     sigma_n = daily_volatility * 0.05
     kappa = value_params['kappa']
     lambda_a = value_params['lambda_a']
-    ORDER_SIZE_MODEL = OrderSizeModel()
+    NOISE_ORDER_SIZE_MODEL = OrderSizeModel('noise')
+    VALUE_ORDER_SIZE_MODEL = OrderSizeModel('value')
+    MOMENTUM_ORDER_SIZE_MODEL = OrderSizeModel('momentum')
+
+
 
     # Agent configuration
     agent_count, agents, agent_types = 0, [], []
@@ -177,7 +181,7 @@ def build_config(params: Dict):
         ValueAgent(
             id=j, name=f"Value Agent {j}", type="ValueAgent", symbol=ticker,
             starting_cash=starting_cash, sigma_n=sigma_n, r_bar=r_bar, kappa=kappa,
-            lambda_a=lambda_a, log_orders=log_orders_value, order_size_model=ORDER_SIZE_MODEL,
+            lambda_a=lambda_a, log_orders=log_orders_value, order_size_model=VALUE_ORDER_SIZE_MODEL,
             exchange_ids=exchange_ids,  # Connect to all exchanges
             random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
         )
@@ -192,7 +196,7 @@ def build_config(params: Dict):
             id=j, name=f"MOMENTUM_AGENT_{j}", type="MomentumAgent", symbol=ticker,
             starting_cash=starting_cash, min_size=momentum_params['min_size'], max_size=momentum_params['max_size'],
             poisson_arrival=momentum_params['poisson_arrival'], wake_up_freq=str_to_ns(momentum_params['wake_up_freq']),
-            log_orders=log_orders_momentum, order_size_model=ORDER_SIZE_MODEL,
+            log_orders=log_orders_momentum, order_size_model=MOMENTUM_ORDER_SIZE_MODEL,
             subscribe=momentum_params['subscribe'],
             exchange_ids=exchange_ids,  # Connect to all exchanges
             random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
@@ -240,7 +244,7 @@ def build_config(params: Dict):
             id=j, name=f"NoiseAgent {j}", type="NoiseAgent", symbol=ticker,
             starting_cash=starting_cash, log_orders=log_orders_noise,
             wakeup_time=get_wake_time(NOISE_MKT_OPEN,NOISE_MKT_CLOSE),
-            order_size_model=ORDER_SIZE_MODEL,
+            order_size_model=NOISE_ORDER_SIZE_MODEL,
             exchange_ids=exchange_ids,  # Connect to all exchanges
             random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
         )

@@ -160,7 +160,7 @@ dependencies:
   - zipp=3.15.0=pyhd8ed1ab_0
   - zlib=1.2.13=h4ab18f5_6
   - pip:
-      - abides-experiments==0.1.0
+#      - abides-experiments==0.1.0
       - alabaster==0.7.13
       - async-timeout==4.0.3
       - babel==2.14.0
@@ -184,7 +184,7 @@ dependencies:
       - markupsafe==2.1.5
       - msgpack==1.0.5
       - multiprocess==0.70.15
-      - my-experiments==0.1.0
+#      - my-experiments==0.1.0
       - networkx==2.6.3
       - nodeenv==1.9.1
       - numpy==1.21.6
