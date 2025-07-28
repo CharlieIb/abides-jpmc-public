@@ -28,7 +28,7 @@ class NoiseAgent(TradingAgent):
         symbol: str = "IBM",
         starting_cash: int = 100000,
         log_orders: bool = False,
-        order_size_model: Optional[OrderSizeGenerator] = None,
+        order_size_model = None,
         wakeup_time: Optional[NanosecondTime] = None,
         exchange_ids: Optional[List[int]] = None,
     ) -> None:
