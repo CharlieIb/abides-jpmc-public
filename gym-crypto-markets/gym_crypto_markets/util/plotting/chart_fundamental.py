@@ -5,7 +5,7 @@ from dateutil.parser import parse
 from pandas.plotting import register_matplotlib_converters
 import argparse
 import sys
-sys.path.append('../..')
+sys.path.append('../../../..')
 from ..formatting.convert_order_stream import dir_path
 
 

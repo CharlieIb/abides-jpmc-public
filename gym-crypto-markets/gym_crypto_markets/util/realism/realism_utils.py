@@ -4,14 +4,14 @@ import numpy as np
 from pathlib import Path
 p = str(Path(__file__).resolve().parents[1])  # directory one level up from this file
 sys.path.append(p)
-from util.formatting.convert_order_book import process_orderbook, is_wide_book
-from util.formatting.convert_order_stream import convert_stream_to_format
+from ...util.formatting.convert_order_book import process_orderbook, is_wide_book
+from ...util.formatting.convert_order_stream import convert_stream_to_format
 import itertools
 from bisect import bisect
 from matplotlib.cm import get_cmap
 import os
 import warnings
-from util.util import get_value_from_timestamp
+from ...util.util import get_value_from_timestamp
 
 
 MID_PRICE_CUTOFF = 10000  # Price above which mid price is set as `NaN` and subsequently forgotten. WARNING: This

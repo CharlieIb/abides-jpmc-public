@@ -2,9 +2,9 @@ import pandas as pd
 import sys
 import os
 
-sys.path.append('../../..')
+sys.path.append('../../../../..')
 
-from realism.realism_utils import make_orderbook_for_analysis, MID_PRICE_CUTOFF
+from ..realism.realism_utils import make_orderbook_for_analysis, MID_PRICE_CUTOFF
 from matplotlib import pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
