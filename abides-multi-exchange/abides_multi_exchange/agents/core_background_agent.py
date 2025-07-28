@@ -15,6 +15,10 @@ from abides_markets.messages.marketdata import (
     TransactedVolDataMsg,
     TransactedVolSubReqMsg,
 )
+from ..messages import (
+    TradeDataSubReqMsg,
+    TradeDataMsg
+)
 from abides_markets.orders import Order, Side
 from abides_multi_exchange.messages import CompleteTransferMsg
 
@@ -81,6 +85,7 @@ class CoreBackgroundAgent(TradingAgent):
         self.parsed_inter_wakeup_executed_orders: List[Tuple[int, int]] = []
         self.parsed_mkt_data_buffer: Deque[Dict[str, Any]] = deque(maxlen=self.market_data_buffer_length)
         self.parsed_volume_data_buffer: Deque[Dict[str, Any]] = deque(maxlen=self.market_data_buffer_length)
+        self.parsed_trade_data_buffer: Deque[List[Dict[str, Any]]] = deque(maxlen=self.market_data_buffer_length)
         self.raw_state: Deque[Dict[str, Any]] = deque(maxlen=self.state_buffer_length)
         self.order_status: Dict[int, Dict[str, Any]] = {}
 
@@ -91,11 +96,11 @@ class CoreBackgroundAgent(TradingAgent):
     def wakeup(self, current_time: NanosecondTime) -> bool:
         """On wakeup, the agent subscribes to all exchanges (if it hasn't already)
            and then calls its main logic loop."""
-        #print(f"DEBUG: CoreBackgroundAgent ({self.id}) waking up at time {current_time}")  # <-- ADD THIS
+        #print(f"DEBUG: CoreBackgroundAgent ({self.id}) waking up at time {current_time}")
         ready_to_trade = super().wakeup(current_time)
 
         if not self.has_subscribed and self.exchange_ids:
-            #print(f"DEBUG: CoreBackgroundAgent ({self.id}) is attempting to subscribe now.")  # <-- ADD THIS
+            #print(f"DEBUG: CoreBackgroundAgent ({self.id}) is attempting to subscribe now.")
             # Subscribe to all available exchanges
             for ex_id in self.exchange_ids:
                 if self.subscribe:
@@ -112,6 +117,13 @@ class CoreBackgroundAgent(TradingAgent):
                         TransactedVolSubReqMsg(
                             symbol=self.symbol,
                             lookback=self.lookback_period,
+                        )
+                    )
+                    super().request_data_subscription(
+                        ex_id,
+                        TradeDataSubReqMsg(
+                            symbol=self.symbol,
+                            freq=self.subscribe_freq
                         )
                     )
             self.has_subscribed = True
@@ -142,6 +154,12 @@ class CoreBackgroundAgent(TradingAgent):
             elif isinstance(message, TransactedVolDataMsg):
                 parsed_volume_data = self.get_parsed_volume_data(sender_id, message)
                 self.parsed_volume_data_buffer.append(parsed_volume_data)
+            elif isinstance(message, TradeDataMsg):
+                # --- NEW --- : pipeline to handle trade data
+                if message.trades:
+                    self.parsed_trade_data_buffer.append(message.trades)
+
+
 
     def get_wake_frequency(self) -> NanosecondTime:
         """
@@ -220,10 +238,12 @@ class CoreBackgroundAgent(TradingAgent):
         parsed_mkt_data_buffer = deepcopy(self.parsed_mkt_data_buffer)
         internal_data = self.get_internal_data()
         parsed_volume_data_buffer = deepcopy(self.parsed_volume_data_buffer)
+        parsed_trade_data_buffer = deepcopy(self.parsed_trade_data_buffer)
         new = {
             "parsed_mkt_data": parsed_mkt_data_buffer,
             "internal_data": internal_data,
             "parsed_volume_data": parsed_volume_data_buffer,
+            "parsed_trade_data": parsed_trade_data_buffer,
         }
         self.raw_state.append(new)
 
