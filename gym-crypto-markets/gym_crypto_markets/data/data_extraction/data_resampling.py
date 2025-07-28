@@ -30,7 +30,7 @@ def resample_price_data(
         if scale_price:
             print("Scaling price to notional cents for ABIDES...")
             df['PRICE'] = pd.to_numeric(df['PRICE'], errors='coerce')
-            df['PRICE'] = (df['PRICE'] * 100 * 0.0001).round(4)
+            df['PRICE'] = (df['PRICE'] * 100).round(4)
 
         print(f"Resampling data to '{freq}' frequency...")
         price_series = df['PRICE'].resample(freq).last()
