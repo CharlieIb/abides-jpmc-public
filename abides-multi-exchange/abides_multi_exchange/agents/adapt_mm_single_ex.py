@@ -246,7 +246,7 @@ class AdaptiveMarketMakerAgent(TradingAgent):
     def update_order_size(self) -> None:
         """Updates size of order to be placed on a specific exchange."""
 
-        buy_vol, sell_vol = self.transacted_volume.get(self.symbol, (0, 0))
+        buy_vol, sell_vol = self.transacted_volume.get(self.exchange_id).get(self.symbol, (0, 0))
         total_vol = buy_vol + sell_vol
         qty = round(self.pov * total_vol)
         # print(f"DEBUG ({self.name} for Ex {self.exchange_id}): Total vol={total_vol}, base size={qty}.")
