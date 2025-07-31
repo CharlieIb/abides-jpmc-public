@@ -132,9 +132,21 @@ def keep_last_by_exchange_decorator(func):
 
         processed_volume_data = list(latest_volume_data.values())
 
+        # Don't think I need the below
+        # latest_trade_data = defaultdict(dict)
+        # for entry in last_state.get("parsed_trade_data", []):
+        #     exchange_id = entry.get("exchange_id")
+        #     if exchange_id is not None:
+        #         latest_trade_data[exchange_id] = entry
+        #
+        # processed_trade_data = list(latest_trade_data.values())
+
+
         # Update the last state with the processed data
         last_state["parsed_mkt_data"] = processed_mkt_data
         last_state["parsed_volume_data"] = processed_volume_data
+        last_state["processed_trade_data"] = processed_trade_data
+
 
         # The decorated function will receive a list containing only the processed last state
         return func(self, [last_state])
