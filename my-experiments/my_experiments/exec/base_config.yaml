@@ -4,7 +4,7 @@ background_config_params:
   end_time: "23:59:59"
   stdout_log_level: "INFO"
   ticker: "ABM"
-  starting_cash: 10000000  # Cash in this simulator is always in CENTS.
+  starting_cash: 10000000000  # Cash in this simulator is always in CENTS.
 
   # --- Log orders: Individual agent logs ---
   # These must be None or True (False will yield True)
@@ -78,21 +78,51 @@ background_config_params:
     backstop_quantity: 0
     cancel_limit_delay: 50
 
-    # --- General seetings ---
+    # --- General settings ---
   default_computation_delay: 50
 
 
 gym_environment:
   env_id: "CryptoEnv-v2" # The registered ID of your environment
-  timestep_duration: '1s'
+  timestep_duration: '60s'
   debug_mode: True
   first_interval: "00:05:00"
 
-rl_agent:
-  # This can be used to dynamically import the agent class
-  # class_name: "MeanReversionAgent"
-  window: 300
-  num_std_dev: 2
+active_agent_config: "PPOAgent" # Change this to "MeanReversionAgent" to switch
+
+agent_configurations:
+
+  MeanReversionAgent:
+    agent_module: "my_experiments.agents_multi"
+    agent_class: "MeanReversionAgent"
+    window: 300
+    num_std_dev: 2
+
+  DQNAgent:
+    agent_module: "my_experiments.agents_multi"
+    agent_class: "DQNAgent"
+    learning_rate: 0.001
+    discount_factor: 0.99
+    exploration_start: 1.0
+    exploration_end: 0.02
+    exploration_decay_steps: 10000
+    replay_buffer_size: 10000
+    batch_size: 32
+    target_update_freq: 100
+    use_confidence_sizing: True
+
+  PPOAgent:
+    agent_module: "my_experiments.agents_multi"
+    agent_class: "PPOAgent"
+    learning_rate: 0.0003
+    gamma: 0.99
+    gae_lambda: 0.95
+    policy_clip: 0.2
+    n_epochs: 10
+    batch_size: 64
+    learn_interval: 2048
+    use_confidence_sizing: True
+
 
 simulation_runner:
   num_episodes: 1

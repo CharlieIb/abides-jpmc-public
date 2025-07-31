@@ -35,12 +35,13 @@ class DQNAgent():
     def __init__(self, observation_space, action_space,
                  learning_rate = 1e-3, discount_factor = 1.0,
                  exploration_start=1.0, exploration_end=0.02, exploration_decay_steps= 10000,
-                 replay_buffer_size=10000, batch_size=32, target_update_freq=100
+                 replay_buffer_size=10000, batch_size=32, target_update_freq=100,
+                 use_confidence_sizing: bool = False
                  ):
         self.observation_space_shape = observation_space.shape
         self.action_space_n = action_space.n # The number of discrete actions (BUY, HOLD, SELL)
 
-        # Policy Network: The network taht learns and is actively trained
+        # Policy Network: The network that learns and is actively trained
         self.policy_net = DQN (int(np.prod(self.observation_space_shape)), self.action_space_n)
         # Target Network: A copy of the policy network, use for stable Q-value targets
         self.target_net = DQN(int(np.prod(self.observation_space_shape)), self.action_space_n)
@@ -54,6 +55,7 @@ class DQNAgent():
 
         # Hyperparameters for the RL algorithm
         self.discount_factor = discount_factor # Gamma (y): how much future rewards are values
+        self.exploration_start = exploration_start
         self.exploration_rate = exploration_start # Epsilon (e): current probability of random action
         self.exploration_end = exploration_end # Minimum epsilon value
         self.exploration_decay_steps = exploration_decay_steps
@@ -66,31 +68,71 @@ class DQNAgent():
         self.target_update_freq = target_update_freq # How often to update the target network
         self.learn_step_counter = 0 # Counter for learning steps, used for target network updates and exploration decay
 
+        self.use_confidence_sizing = use_confidence_sizing
+
         print(f"Agent initialized for DQN. Obs space: {observation_space.shape}, Action space: {action_space.n}")
 
-    def choose_action(self, state):
+    def reset_agent_state(self):
+        """
+        Resets the agent's state for a new episode.
+        This is primarily used to reset the exploration rate.
+        """
+        self.exploration_rate = self.exploration_start
+        # Optionally, you could reset the learn_step_counter if you want the
+        # Exploration decay to be per-episode rather than across all episodes.
+        # self.learn_step_counter = 0
+        print(f"Agent state reset. Exploration rate is back to {self.exploration_rate:.2f}")
+
+
+    def choose_action(self, state, info=None):
+
+        if info and 'action_mask' in info:
+            action_mask = info['action_mask']
+        else:
+            action_mask = np.ones(self.action_space_n, dtype=np.int8)
+
+        valid_actions = np.where(action_mask == 1)[0]
+        if len(valid_actions) == 0:
+            return (0, 0.0) if self.use_confidence_sizing else 0
+
         # Epsilon-greedy strategy
         if random.random() < self.exploration_rate:
             # Explore: choose a random action
-            return random.randrange(self.action_space_n)
+            action = np.random.choice(valid_actions)
+
+            if self.use_confidence_sizing:
+                return action, 0.5 # Return tuple with neutral confidence
+            else:
+                return action
         else:
-            # Exploit: choose action with highest predicted Q-value from the policy netowrk
+            # Exploit: choose action with highest predicted Q-value from the policy network
             with torch.no_grad(): # Disable gradient calculations for inference
                 # 1. Convert numpy state to torch tensor
                 # state is typically a 1D numpy array (e.g., shape (7,))
                 # .float() ensures it's a float tensor
                 # .unsqueeze(0) adds a batch dimension (e.g., from (7,) to (1,7))
                 # Neural networks in PyTorch typically expect batched inputs.
-                state_tensor = torch.from_numpy(state).float().unsqueeze(0)
-                # To squeeze the last dimension if it is (7, 1)
-                state_tensor = state_tensor.squeeze(-1)
+                state_tensor = torch.from_numpy(state.flatten()).float().unsqueeze(0)
                 # 2. Get Q-values from the policy network
                 # The network outputs Q-values for all possible actions for the given state
-                q_values = self.policy_net(state_tensor)
+                q_values = self.policy_net(state_tensor).squeeze(0)
                 #3. Select the action with the maximum Q-value
                 # .argmax(dim=1) returns the index of the maximum value along dimension 1 (the action dimension)
                 # .item() extracts the single integer action value from the tensor
-                return q_values.argmax(dim=1).item()
+
+                # Apply the mask: set Q-values of invalid actions to -inf
+                # This ensures they are never chosen by argmax
+                masked_q_values = q_values.clone()
+                masked_q_values[action_mask == 0] = -float('inf')
+
+                # Select the action with the maximum Q-value from the masked net
+                action = masked_q_values.argmax().item()
+                if self.use_confidence_sizing:
+                    action_probs = F.softmax(masked_q_values, dim=0)
+                    confidence = action_probs.max().item()
+                    return action, confidence
+                else:
+                    return action
 
     def _store_experience(self, old_state, action, reward, new_state, done):
         """
@@ -101,61 +143,57 @@ class DQNAgent():
         self.replay_buffer.append((old_state, action, reward, new_state, done))
 
 
-    def update_policy(self, old_state, action, reward, new_state, done):
+    def update_policy(self, old_state, action_or_tuple, reward, new_state, done):
+
+        if self.use_confidence_sizing:
+            action, _ = action_or_tuple
+        else:
+            action = action_or_tuple
+
         self.learn_step_counter += 1 # Increment total steps where learning could occur
 
-        # 1. Store the current experience in the replay buffer
+        # Store the current experience
         self._store_experience(old_state, action, reward, new_state, done)
 
-        # 2. Only start learning if the replay buffer has enough experiences for a batch
+        # Check it is time to learn
         if len(self.replay_buffer) < self.batch_size:
-            return # Not enough data yet, wait for more experiences
+            return
 
-        # 3. Sample a random batch of experiences from the replay buffer
+        # Sample a random batch
         mini_batch = random.sample(self.replay_buffer, self.batch_size)
-        # Unpack the batch into separate lists of states, actions, etc.
         states, actions, rewards, next_states, dones = zip(*mini_batch)
 
-        # 4. Convert lists of NumPy arrays/scalars to PyTorch Tensors
-        # These will be the inputs for the neural network.
+        # Convert to tensors
         states = torch.from_numpy(np.array(states)).float()
-        # Squeeze the states if the output is (batch_size, 7, 1)
         states = states.squeeze(-1)
-        # actions need to be Long (integer) type and unsqueezed for gather operation
         actions = torch.tensor(np.array(actions)).long().unsqueeze(1)
-        # rewards and dones need to be float and unsqueezed for element-wise operations
         rewards = torch.tensor(rewards).float().unsqueeze(1)
-        next_states = torch.from_numpy(np.array(next_states)).float()
-        next_states = next_states.squeeze(-1)
-        dones = torch.tensor(dones).float().unsqueeze(1) # 'done' is boolean, convert to 0.0 or 1.0
+        next_states = torch.from_numpy(np.array(next_states).squeeze()).float()
+        dones = torch.tensor(dones).float().unsqueeze(1)
 
-        # 5. Compute Q-values for current states (Q(s,a)) using the Policy Network
-        # 'self.policy_net(states)' outputs Q-values for all actions for each state in the batch.
-        # '.gather(1, actions)' selects the Q-value specifically for the 'action' that was actually taken.
-        # Example: if actions is [[0], [2], [1]], it picks the Q-value for action 0 from row 0, action 2 from row 1, etc.
+        # Compute Q(s,a)
         q_values = self.policy_net(states).gather(1, actions)
 
-        # 6. Compute Max Q-value for next states (max(Q(s', a'))) using the Target Network
+        # Compute Max Q-value for next states (max(Q(s', a'))) using the Target Network
         # 'self.target_net(next_states)' outputs Q-values for all actions for each next_state in the batch.
         # '.max(1)' find the maximum Q-value along dimension 1 (actions) and returns (max_values, indices).
         # '[0]' selects only the max_values.
         # '.unsqueeze(1)' adds back the dimension for consistent shape for element-wise operations
         # '.detach()' is crucial: it stops gradients from flowing back into the target network
         # The target network is only updated by copying weights, not by gradient descent here.
-        next_q_values = self.target_net(next_states).max(1)[0].unsqueeze(1).detach()
+        with torch.no_grad():
+            next_q_values = self.target_net(next_states).max(1)[0].unsqueeze(1).detach()
 
-        # 7. Compute the Target Q-value (TD Target)
+        # Compute the Target Q-value (TD Target)
         # TD Target = Reward + gamma * max(Q(s', a')) * (1 - done_flag)
         # If 'done_flag' is True (1.0), then (1 - 1.0) = 0, so the future reward term vanishes
         # This correctly handles terminal states where there is no future.
         target_q_values = rewards + self.discount_factor * next_q_values * (1 - dones)
 
-        # 8. Compute the Loss
-        # Measures the difference between the policy network's predicted Q-values
-        # and the calculated target Q-values
+        # Compute the Loss
         loss = self.criterion(q_values, target_q_values)
 
-        # 9. Optimise the Policy Network
+        # Optimise the Policy Network
         # This is where the neural network's weights are actually updated.
         self.optimizer.zero_grad() # Clear gradients from previous optimisation step
         loss.backward() # Perform backpropagation: compute gradients of the loss w.r.t. policy_net's weights
@@ -166,100 +204,13 @@ class DQNAgent():
                 param.grad.data.clamp_(-1, 1)
         self.optimizer.step()
 
-        # 10. Update Exploration Rate (Epsilon Decay)
+        # Update Exploration Rate (Epsilon Decay)
         # Linearly decreases epsilon over time, balancing exploration and exploitation
         self.exploration_rate = max(self.exploration_end, self.exploration_rate - self.epsilon_decay_linear)
 
-        # 11. Periodically Update the Target Network
+        # Periodically Update the Target Network
         # Copy weights from the policy network to the target network at specified intervals
         if self.learn_step_counter % self.target_update_freq == 0:
             self.target_net.load_state_dict(self.policy_net.state_dict())
             print(f"Target network updated for {self.learn_step_counter} steps")
 
-
-if __name__ == "__main__":
-
-    env = gym.make(
-        "markets-daily_investor-v0",
-        background_config="rmsc04",
-        # Env config - alter it
-        order_fixed_size=100, # default size of market orders for BUY/SELL actions
-        timestep_duration='60s', # Agent wakes up every minute
-        mkt_close="16:00:00" # alter as needed
-    )
-
-    env.seed(0)
-
-
-    # Instantiate the RL-DQN agent
-    # Get the shape of the observation space (e.g. (7,)) and number of actions (e.g. ,3)
-    observation_dim = int(np.prod(env.observation_space.shape))
-    action_dim = env.action_space.n
-
-    agent = DQNAgent(
-        observation_space=env.observation_space,
-        action_space=env.action_space,
-        learning_rate=1e-3,
-        discount_factor=1,
-        exploration_start=1.0,
-        exploration_end=0.02,
-        exploration_decay_steps=10000, # Tune as needed
-        replay_buffer_size=10000,
-        batch_size=32,
-        target_update_freq=100,
-    )
-
-
-    # Training Loop Parameters
-    num_episodes = 2  # Tune as needed (Actual: 50, Testing: 2)
-
-    # Track total steps for exploration decay (if using a global decay schedule)
-    total_steps = 0
-
-
-    # Episode Interation
-
-    for episode in range(num_episodes):
-        print(f"\n--- Starting Episode {episode + 1} ---")
-
-        # Reset Environment for a New Episode
-        # Expecting 1 return value for Gym 0.21.0 - 0.25.x
-        state = env.reset()  # Start a new episode
-        done = False
-        episode_reward = 0
-        step_count = 0
-
-        # Loop until the episode is done (market close or other termination)
-        # The tqdm will track steps within one episode or over total steps if you change the range
-        # Here, it's tracking steps within an episode.
-        with tqdm(total=None, desc=f"Episode {episode+1}", unit="steps") as pbar:
-            while not done:
-                # 1. Agent chooses an action based on the current state
-                action = agent.choose_action(state)
-
-                # 2. Environment takes a step with the chosen action
-                # For Gym v0.21.0 - 0.25.x, env.step returns (obs, reward, done, info)
-                # Note: For Gym v0.26.0+, env.step returns (observation, reward, terminated, truncated, info)
-                new_state, reward, done, info = env.step(action)
-
-                # 3. Agent learns from the experience
-                agent.update_policy(state, action, reward, new_state, done)
-
-                # Update current state and episode reward
-                state = new_state
-                episode_reward += reward
-                step_count += 1
-                total_steps += 1 # Global step counter for exploration/logging
-
-                pbar.update(1) # Update tqdm progress bar
-
-                # Optional: Add a break condition if the episode runs too long for testing
-                if step_count > 500:  # Example: max 500 steps per episode for quick testing
-                    print("Episode truncated due to max steps for testing.")
-                    done = True # Force done if this happens to exit loop
-                    break
-
-        print(f"Episode {episode + 1} finished after {step_count} steps. Total Reward: {episode_reward:.2f}")
-
-    env.close()
-    print("Simulation finished.")
