@@ -28,7 +28,7 @@ class TradeDataMsg(MarketDataMsg):
     """
     This message returns a list of individual trades as part of a data subscription.
 
-    Each trade is represented as a tuple of (time, price, quantity, side)
+    Each trade is represented as a Dict of (time, price, quantity, side)
     The 'side represents the side of the resting order that was filled --
     NOT the aggressor
     """
