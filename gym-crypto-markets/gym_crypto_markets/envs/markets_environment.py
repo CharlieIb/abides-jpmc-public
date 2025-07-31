@@ -11,7 +11,7 @@ from abides_core import Kernel, NanosecondTime
 from abides_core.generators import InterArrivalTimeGenerator
 from abides_core.utils import subdict
 from abides_markets.utils import config_add_agents
-from abides_gym.envs.core_environment import AbidesGymCoreEnv
+from .core_environment_multi import AbidesGymCoreEnv
 
 from abides_multi_exchange.agents_gym.financial_gym_agent import FinancialGymAgent
 
