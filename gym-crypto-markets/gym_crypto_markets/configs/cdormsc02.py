@@ -16,15 +16,14 @@ import numpy as np
 import pandas as pd
 
 from abides_core.utils import get_wake_time, str_to_ns
-from abides_markets.agents import (
-    ExchangeAgent
-)
+
 from abides_multi_exchange.agents import (
     NoiseAgent,
     ValueAgent,
     AdaptiveMarketMakerAgent,
     MomentumAgent,
-    ArbitrageAgent
+    ArbitrageAgent,
+    ExchangeAgent
 )
 from ..models import OrderSizeModel
 from ..oracle import DataOracle

@@ -85,7 +85,7 @@ class CoreBackgroundAgent(TradingAgent):
         self.parsed_inter_wakeup_executed_orders: List[Tuple[int, int]] = []
         self.parsed_mkt_data_buffer: Deque[Dict[str, Any]] = deque(maxlen=self.market_data_buffer_length)
         self.parsed_volume_data_buffer: Deque[Dict[str, Any]] = deque(maxlen=self.market_data_buffer_length)
-        self.parsed_trade_data_buffer: Deque[List[Dict[str, Any]]] = deque(maxlen=self.market_data_buffer_length)
+        self.parsed_trade_data_buffer: Deque[Dict[str, Any]] = deque(maxlen=3000)
         self.raw_state: Deque[Dict[str, Any]] = deque(maxlen=self.state_buffer_length)
         self.order_status: Dict[int, Dict[str, Any]] = {}
 
@@ -100,7 +100,7 @@ class CoreBackgroundAgent(TradingAgent):
         ready_to_trade = super().wakeup(current_time)
 
         if not self.has_subscribed and self.exchange_ids:
-            #print(f"DEBUG: CoreBackgroundAgent ({self.id}) is attempting to subscribe now.")
+            print(f"DEBUG: CoreBackgroundAgent ({self.id}) is attempting to subscribe now.")
             # Subscribe to all available exchanges
             for ex_id in self.exchange_ids:
                 if self.subscribe:
@@ -157,8 +157,10 @@ class CoreBackgroundAgent(TradingAgent):
             elif isinstance(message, TradeDataMsg):
                 # --- NEW --- : pipeline to handle trade data
                 if message.trades:
-                    self.parsed_trade_data_buffer.append(message.trades)
-
+                    # print(message.trades)
+                    # print(f"BEFORE: {self.parsed_trade_data_buffer}")
+                    self.parsed_trade_data_buffer.extend(message.trades)
+#                     print(f"AFTER: {self.parsed_trade_data_buffer}")
 
 
     def get_wake_frequency(self) -> NanosecondTime:
