@@ -45,7 +45,7 @@ from abides_markets.messages.query import (
 )
 from abides_markets.orders import Order, LimitOrder, MarketOrder, Side
 from abides_markets.agents.financial_agent import FinancialAgent
-from abides_markets.agents.exchange_agent import ExchangeAgent
+from .exchange_agent import ExchangeAgent
 from abides_multi_exchange.messages import CompleteTransferMsg
 
 logger = logging.getLogger(__name__)
@@ -842,7 +842,7 @@ class TradingAgent(FinancialAgent):
         else:
             warnings.warn(f"Execution received for order not in orders list: {order}")
 
-        logger.debug(f"After order execution, agent open orders: {self.orders}")
+        logger.debug(f"After order execution, agent open orders: {len(self.orders)}")
         logger.debug(f"Holdings at {exchange_id}: {self.holdings_by_exchange[exchange_id]}")
         logger.debug(f"Total Cash: {self.cash}")
 

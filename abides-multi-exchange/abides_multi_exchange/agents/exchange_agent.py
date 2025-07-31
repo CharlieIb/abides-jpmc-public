@@ -132,6 +132,7 @@ class ExchangeAgent(FinancialAgent):
         # --- NEW ---: to handle trade data subscriptions
         # This class simply inherits the necessary fields (agent_id, last_update_ts, freq)
         # It acts as a type markr for our new subscription
+        # last_history_index: int = 0
         pass
 
     @dataclass
@@ -448,8 +449,10 @@ class ExchangeAgent(FinancialAgent):
                     )
                 # --- NEW --- : to handle trade data subscriptions
                 elif isinstance(message, TradeDataSubReqMsg):
+                    print(f"[{current_time}] Agent {self.id}: Subscribing to exchanges.")
+                    # current_history_len = len(self.order_books[message.symbol].history)
                     sub = self.TradeDataSubscription(
-                        sender_id, current_time, message.freq
+                        sender_id, current_time, message.freq, # last_history_index=current_history_len
                     )
                 elif isinstance(message, BookImbalanceSubReqMsg):
                     sub = self.BookImbalanceDataSubscription(
@@ -607,6 +610,7 @@ class ExchangeAgent(FinancialAgent):
                 self.order_books[message.order.symbol].handle_limit_order(
                     deepcopy(message.order)
                 )
+                # print(f"[{current_time}] Exchange {self.id}: Publishing data after LimitOrder.")
                 self.publish_order_book_data()
 
         elif isinstance(message, MarketOrderMsg):
@@ -623,6 +627,7 @@ class ExchangeAgent(FinancialAgent):
                 self.order_books[message.order.symbol].handle_market_order(
                     deepcopy(message.order)
                 )
+                # print(f"[{current_time}] Exchange {self.id}: Publishing data after MarketOrder.")
                 self.publish_order_book_data()
 
         elif isinstance(message, CancelOrderMsg):
@@ -805,6 +810,8 @@ class ExchangeAgent(FinancialAgent):
                 )
             )
         elif isinstance(data_sub, self.TradeDataSubscription):
+            # print(
+            #     f"[{self.current_time}] Exchange {self.id}: STARTING trade data scan for Agent {data_sub.agent_id}.")
             new_trade_events = [
                 event for event in book.history
                 if event['type'] == 'EXEC' and event ['time'] > data_sub.last_update_ts
@@ -812,22 +819,26 @@ class ExchangeAgent(FinancialAgent):
 
             if new_trade_events:
                 # Format the trade data into the simple Dict format for the message
+                #print(new_trade_events)
                 trades_to_send = [
                     {
                         'time': event['time'],
                         'price': event['price'],
                         'quantity': event['quantity'],
-                        'side':  Side.BID if event['side'] == 'BUY' else Side.ASK,
+                        'is_buy':  True if event['side'] == 'BUY' else Side.ASK,
                         'exchange_id': self.id
                     }
                     for event in new_trade_events
                 ]
+                # print(
+                #     f"[{self.current_time}] Exchange {self.id}: FINISHED trade data scan for Agent {data_sub.agent_id}.")
 
                 messages.append(
                     TradeDataMsg(
                         symbol,
                         book.last_trade,
-                        self.current_time,trades_to_send,
+                        self.current_time,
+                        trades_to_send,
                         self.id
                     )
                 )

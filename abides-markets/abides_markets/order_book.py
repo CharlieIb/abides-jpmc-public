@@ -293,7 +293,7 @@ class OrderBook:
                     if order.side.is_bid()
                     else "BUY",  # by def exec if from point of view of passive order being exec
                     quantity=matched_order.quantity,
-                    price=matched_order.limit_price if is_ptc_exec else None,
+                    price=matched_order.limit_price # if is_ptc_exec else None, # This is removed for data analysis
                 )
             )
 
