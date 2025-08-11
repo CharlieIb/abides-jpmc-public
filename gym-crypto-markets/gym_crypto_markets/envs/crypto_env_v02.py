@@ -93,6 +93,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         self.reward_mode: str = reward_mode
         self.done_ratio: float = done_ratio
         self.debug_mode: bool = debug_mode
+        self.latest_price: Dict[int, int] = {}
 
         # marked_to_market limit to STOP the episode
         self.down_done_condition: float = self.done_ratio * starting_cash
@@ -178,7 +179,6 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
 
         # An attribute to store the history of global mid-prices
         self.global_mid_price_history = deque(maxlen=self.state_history_length)
-        self.trade_history_buffer = deque(maxlen= 3000)
         self.aggregate_history = deque(maxlen=10)
 
 
@@ -240,6 +240,23 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         )
 
         self.previous_marked_to_market = self.starting_cash
+        self.realised_pnl = 0.0
+
+    def reset(self, override_bg_params: dict = None):
+        """
+        Overrides the parent reset method to ensure all custom state variables
+        are properly re-initialized for each new episode.
+        """
+        # First, call the parent's reset method to handle all the core
+        # ABIDES simulation and kernel resetting. This returns the initial state.
+        initial_state = super().reset()
+
+        # Now, reset the custom attributes for this child environment.
+        self.realised_pnl = 0.0
+        self.previous_marked_to_market = float(self.starting_cash)
+        self.aggregate_history.clear()
+        self.global_mid_price_history.clear()
+        return initial_state
 
     def step(self, action_or_tuple: any) -> Tuple[np.ndarray, float, bool, Dict[str, Any]]:
         """
@@ -309,6 +326,44 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         self.info = self.raw_state_to_info(deepcopy(raw_state["result"]))
 
         return (self.state, self.reward, self.done, self.info)
+
+    def _get_latest_ask_price(self, exchange_id: int) -> float:
+        """
+        Helper function to get the best ask price for a given exchange from the agent's memory.
+        This represents the most recent price information the agent has before acting.
+        """
+        if hasattr(self.gym_agent, 'parsed_mkt_data_buffer'):
+            for data in reversed(self.gym_agent.parsed_mkt_data_buffer):
+                if data.get("exchange_id") == exchange_id:
+                    asks = data.get("asks", [])
+                    if asks and len(asks) > 0 and len(asks[0]) > 0:
+                        return asks[0][0]
+
+        if hasattr(self.gym_agent, 'get_last_trade'):
+            last_trade_price = self.gym_agent.get_last_trade(exchange_id, "ABM")
+            if last_trade_price is not None and last_trade_price > 0:
+                return last_trade_price
+
+        return 0.0
+    def _get_latest_bid_price(self, exchange_id: int) -> float:
+        """
+        Helper function to get the best bid price for a given exchange from the agent's memory.
+        This represents the most recent price information the agent has before acting.
+        """
+        if hasattr(self.gym_agent, 'parsed_mkt_data_buffer'):
+            for data in reversed(self.gym_agent.parsed_mkt_data_buffer):
+                if data.get("exchange_id") == exchange_id:
+                    bids = data.get("bids", [])
+                    if bids and len(bids) > 0 and len(bids[0]) > 0:
+                        return bids[0][0]
+
+        if hasattr(self.gym_agent, 'get_last_trade'):
+            last_trade_price = self.gym_agent.get_last_trade(exchange_id, "ABM")
+            if last_trade_price is not None and last_trade_price > 0:
+                return last_trade_price
+
+        return 0.0
+
     def _map_action_space_to_ABIDES_SIMULATOR_SPACE(self, action: int, confidence: float) -> List[Dict[str, Any]]:
         """
         --- Maps the new, larger action space to ABIDES actions ---
@@ -336,10 +391,19 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             action_index = action - 1
             exchange_id = action_index // 2
             is_buy = (action_index % 2) == 0
+            if is_buy:
+                current_ask_price = self._get_latest_ask_price(exchange_id)
+                estimated_cost = current_ask_price * trade_size
 
-            if is_buy and self.gym_agent.cash <= 0:
-                print(f"INFO: Agent tried to BUY with cash <= 0. Overiding HOLD")
-                return []
+                if self.gym_agent.cash < estimated_cost:
+
+                    print(f"INFO: Agent tried to BUY with insufficient cash. Overiding HOLD")
+                    return []
+                else:
+                    self.realised_pnl -= estimated_cost
+            else:
+                current_bid_price = self._get_latest_bid_price(exchange_id)
+                self.realised_pnl += current_bid_price * trade_size
 
             direction = "BUY" if is_buy else "SELL"
 
@@ -354,6 +418,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             from_exchange = 1
             to_exchange = 0
             holdings_on_source = self.gym_agent.holdings_by_exchange.get(from_exchange, {}).get("ABM", 0)
+            self.realised_pnl -= self.gym_agent.withdrawal_fees.get(from_exchange).get("ABM", self.gym_agent.withdrawal_fees.get(from_exchange).get("default", 0))
 
             if holdings_on_source < trade_size:
                 print(
@@ -373,7 +438,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             to_exchange = 1
 
             holdings_on_source = self.gym_agent.holdings_by_exchange.get(from_exchange, {}).get("ABM", 0)
-
+            self.realised_pnl -= self.gym_agent.withdrawal_fees.get(from_exchange).get("ABM", self.gym_agent.withdrawal_fees.get(from_exchange).get("default", 0))
             if holdings_on_source < trade_size:
                 print(
                     f"INFO: Agent tried to TFR {trade_size} from Exch {from_exchange} but only holds {holdings_on_source}. Overriding to HOLD.")
@@ -428,17 +493,13 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         processed_state = raw_state[0]
         internal_data = processed_state.get("internal_data", {})
 
-        # --- Step 1: Process new trades and update aggregate history ---
-        # The raw trade buffer lives on the RL agent itself.
-        if self.trade_history_buffer:
-            new_trades = list(self.trade_history_buffer)
+        new_trades = processed_state.get("parsed_trade_data", [])
+
+        if new_trades:
             current_interval_summary = self.calculate_aggregates(new_trades)
             self.aggregate_history.append(current_interval_summary)
 
-            # --- Step 2: Wipe the raw trade buffer as planned ---
-            self.trade_history_buffer.clear()
-
-        # --- Step 3: Calculate all features from the clean aggregate history ---
+        # Calculate all features from the clean aggregate history ---
         total_sum_price_vol = sum(interval['sum_price_vol'] for interval in self.aggregate_history)
         total_traded_volume = sum(interval['total_volume'] for interval in self.aggregate_history)
         total_buy_volume = sum(interval['buy_volume'] for interval in self.aggregate_history)
@@ -481,7 +542,9 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             exchange_features.extend([price_dev, vol_share, tvi])
 
         # Temporal features (returns) from the history of interval VWAPs
-        returns = np.diff(interval_vwaps) if len(interval_vwaps) > 1 else np.array([])
+        relevant_vwaps = interval_vwaps[-self.state_history_length:]
+        returns = np.diff(relevant_vwaps) if len(relevant_vwaps) > 1 else np.array([])
+
         padded_returns = np.zeros(self.num_temporal_features)
         if len(returns) > 0:
             padded_returns[-len(returns):] = returns
@@ -714,17 +777,23 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         mkt_data = processed_state["parsed_mkt_data"]
         internal_data = processed_state["internal_data"]
 
+        true_m2m_value = self._calculate_true_m2m(raw_state)
+        market_price = mkt_data[0].get("last_transaction", 0) if mkt_data else 0
+
+
 
         # --- Global Agent Information ---
         info = {
+            "true_marked_to_market": true_m2m_value,
             "current_time": internal_data.get("current_time"),
             "cash": internal_data.get("cash"),
+            "market_price": market_price,
+            "realised_pnl": self.realised_pnl,
             "holdings_by_exchange": internal_data.get("holdings_by_exchange", 0),
             "withdrawal_fees": internal_data.get("withdrawal_fees", {}),
             "total_holdings": internal_data.get("total_holdings", 0),
             "order_status": internal_data.get("order_status"),
             # Pass the processed state to the calculation function
-            "true_marked_to_market": self._calculate_true_m2m(raw_state),
             "mkt_open_times": internal_data.get("mkt_open_times"),
             "mkt_close_times": internal_data.get("mkt_close_times"),
             # This adds the mask to the info dict that gets passed to the agent
