@@ -63,7 +63,7 @@ background_config_params:
   # --- Population Parameters ---
   agent_populations:
     num_value_agents: 100
-    num_momentum_agents: 25
+    num_momentum_agents: 13
     num_arbitrage_agents: 3
     # num_mm_agents = defined below
     num_noise_agents: 10000
@@ -151,8 +151,9 @@ agent_configurations:
 
 
 simulation_runner:
-  num_episodes: 100
+  num_episodes: 50
+  max_episode_steps: 1440
   save_weights:
     enabled: True
     directory: "weights"
-    frequency_episodes: 10 # Save weights every 10 episodes
+    frequency_episodes: 1 # Save weights every 10 episodes
