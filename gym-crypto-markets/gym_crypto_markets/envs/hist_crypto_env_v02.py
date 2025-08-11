@@ -15,10 +15,8 @@ class HistoricalTradingEnv_v02(gym.Env):
         super(HistoricalTradingEnv_v02, self).__init__()
         self.seed()
 
-        data_paths = bg_params.get('historical_data_paths')
-        if not isinstance(data_paths, list):
-            raise TypeError(
-                "Historical environment expects 'historical_data_paths' to be a list of strings in the config.")
+        self.bg_params = bg_params
+        self.env_params = env_params
 
         self.starting_cash = bg_params.get('starting_cash', 10_000_000_000)
         self.num_exchanges = bg_params.get('exchange_params', {}).get('num_exchange_agents', 2)
@@ -26,9 +24,6 @@ class HistoricalTradingEnv_v02(gym.Env):
         self.state_history_length = env_params.get('state_history_length', 5)
         self.debug_mode = env_params.get('debug_mode', False)
 
-        assert len(data_paths) == self.num_exchanges, \
-            "The number of data paths provided does not match num_exchange_agents in the config."
-        print("Number of data streams matches configuration. Continuing with historical simulation.")
 
         self.use_confidence_sizing = env_params.get('use_confidence_sizing', False)
         self.min_trade_size = 10
@@ -62,11 +57,19 @@ class HistoricalTradingEnv_v02(gym.Env):
             shape=(self.num_state_features, 1), dtype=np.float32
         )
 
-        # --- 3. Load and Align Historical Data ---
-        self._load_data(data_paths)
+        self.dfs = []
+        self.max_steps = 0
 
-        # --- 4. Initialize Internal State ---
-        self.reset()
+        # --- Initialize Internal State ---
+        self.current_step = 0
+        self.cash = self.starting_cash
+        self.total_holdings = 0
+        self.realised_pnl = 0.0
+        self.holdings_by_exchange = [0] * self.num_exchanges
+        self.latest_marked_to_market = float(self.starting_cash)
+        self.vwap_history = deque(maxlen=self.state_history_length)
+        self.pending_transfers = []
+
 
     def _load_data(self, data_paths: List[str]):
         """
@@ -74,6 +77,13 @@ class HistoricalTradingEnv_v02(gym.Env):
         ASSUMPTION: Each CSV file contains pre-aggregated data (e.g., 1-minute bars)
         with at least the following columns: 'timestamp', 'price', 'volume', 'vwap', 'buy_volume'.
         """
+
+        if not data_paths or not isinstance(data_paths, list):
+            raise ValueError("Historical environment requires a list of 'data_paths' to be provided.")
+
+        assert len(data_paths) == self.num_exchanges, \
+            "The number of data paths provided does not match num_exchange_agents in the config."
+
         self.dfs = []
         for path in data_paths:
             print(f"Loading historical data from: {path}")
@@ -96,8 +106,23 @@ class HistoricalTradingEnv_v02(gym.Env):
         self.max_steps = len(master_index)
         print(f"Loaded and aligned data for {self.num_exchanges} exchanges with {self.max_steps} steps.")
 
-    def reset(self):
+    def reset(self, override_bg_params: dict = None):
         """Resets the environment for a new episode."""
+        # 1. Start with a fresh copy of the initial background parameters
+        current_bg_params = self.bg_params.copy()
+
+        # 2. Update with any overrides for this specific episode (e.g., new data_paths)
+        if override_bg_params:
+            current_bg_params.update(override_bg_params)
+
+        # 3. Use the updated parameters to configure the episode
+        data_paths = current_bg_params.get('data_paths')
+        if data_paths:
+            self._load_data(data_paths)
+        else:
+            # This error is important for debugging configuration issues.
+            raise ValueError("Could not find 'data_paths' in the final configuration for this episode.")
+
         self.current_step = 0
         self.cash = self.starting_cash
         self.total_holdings = 0
@@ -120,17 +145,11 @@ class HistoricalTradingEnv_v02(gym.Env):
         Generates a random transfer delay in simulation steps, skewed by a Beta distribution.
         Assumes 1 step = 1 minute, matching the typical historical data frequency.
         """
-        # Sample from the Beta distribution using the environment's seeded random generator
         sample = self.np_random.beta(self.transfer_delay_alpha, self.transfer_delay_beta)
 
-        # Calculate the delay in minutes
         delay_range = self.max_transfer_delay_minutes - self.min_transfer_delay_minutes
         delay_minutes = self.min_transfer_delay_minutes + sample * delay_range
 
-        # if self.debug_mode:
-        #     print(f"Generated random transfer delay of ~{delay_minutes:.2f} minutes (steps).")
-
-        # Return the delay as an integer number of steps
         return int(round(delay_minutes))
 
     def _process_pending_transfers(self):
