@@ -18,7 +18,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run an ABIDES-Gym simulation from a YAML config file.")
     parser.add_argument('config_path', type=str, help="Path to the YAML configuration file.")
     parser.add_argument('--mode', type=str, default='train-abides',
-                        choices=['train-abides', 'train-historical', 'test-historical'],
+                        choices=['train-abides', 'train-historical', 'test-historical', 'train-historical-se', 'train-abides-se'],
                         help="The mode to run the simulation in.")
     parser.add_argument('--load_weights_path', type=str, default=None,
                         help="Path to pre-trained agent weights to load (for testing).")
@@ -31,6 +31,28 @@ if __name__ == "__main__":
 
     # Extract parameter sections
     bg_params = params.get('background_config_params', {})
+
+    if args.mode == 'train-historical-se':
+        print("--- Single-Exchange mode activated. Overriding configuration. ---")
+
+        # 1. Force number of exchanges to 1
+        bg_params['exchange_params']['num_exchange_agents'] = 1
+        print(f" > num_exchange_agents set to: 1")
+
+        # 2. Filter data templates to only use 'binance'
+        if 'binance' in bg_params['historical_templates']:
+            binance_template = bg_params['historical_templates']['binance']
+            bg_params['historical_templates'] = {'binance': binance_template}
+            print(f" > hisotrical_templates filtered to 'binance' only.")
+        else:
+                raise ValueError("Single-exchange mode requires a 'binance' tempate in the config")
+    elif args.mode == 'train-abides-se':
+        print(" --- Single-Exchange mode activated. Overriding configuration. ---")
+
+        #1. force the number of exchanges to 1
+        bg_params['exchange_params']['num_exchange_agents'] = 1
+        print(f" > num_exchange_agents set to: 1")
+
     env_params = params.get('gym_environment', {})
     runner_params = params.get('simulation_runner', {})
     active_agent_name = params.get('active_agent_config')
@@ -74,7 +96,7 @@ if __name__ == "__main__":
 
     # Initialise Environment
     # Build the background config dictionary that abides-gym needs
-    if args.mode in ['train-abides']:
+    if args.mode in ['train-abides', 'train-abides-se']:
         print("Initializing ABIDES simulation environment...")
         abides_bg_config = build_config(bg_params)
 
@@ -82,7 +104,7 @@ if __name__ == "__main__":
         env_id = env_params.pop('env_id', 'CryptoEnv-v2')
         # Create the Gym environment, passing the ABIDES config and other env params
         env = gym.make(env_id, background_config=abides_bg_config, **env_params)
-    else:  # train-historical or test-historical
+    else:  # train-historical, train-historical-se or test-historical
         print("Initializing Historical backtesting environment...")
         # We need to know the shape of the observation space and action space
         # For simplicity, we can hardcode them or create a dummy ABIDES env to get them
@@ -132,6 +154,11 @@ if __name__ == "__main__":
 
     abides_data_paths = bg_params.get('data_paths')
 
+    historical_dates = bg_params.get('historical_dates')
+    historical_templates = bg_params.get('historical_templates')
+    hist_path_template_1 = historical_templates.get('binance')
+    hist_path_template_2 = historical_templates.get('kraken')
+
     for episode in range(num_episodes):
         # Reset the environment and the agent's internal state for a new episode.
         # For older Gym versions (like 0.18.0), 'env.reset()' returns only the initial state.
@@ -144,9 +171,38 @@ if __name__ == "__main__":
             # Create the override dictionary to pass to the reset method
             override_params = {'data_file_path': current_data_path}
             state = env.reset(override_bg_params=override_params)
+        elif args.mode in ['train-historical', 'test-historical']:
+            current_date = historical_dates[episode % len(historical_dates)]
+
+            # Dynamically generate the paths for this episode using the templates
+            current_data_path_1 = hist_path_template_1.format(current_date, current_date)
+            current_data_path_2 = hist_path_template_2.format(current_date, current_date)
+            print(current_data_path_1)
+            print(current_data_path_2)
+
+            print(f"\n--- Starting Episode {episode + 1}/{num_episodes} using data from date: {current_date} ---")
+
+            # This is a crucial change. You need to override the data paths
+            # for your environment for each episode.
+            override_params = {
+                'data_paths': [current_data_path_1, current_data_path_2]
+            }
+            state = env.reset(override_bg_params=override_params)
         else:
-            print(f"\n--- Starting Episode {episode + 1}/{num_episodes} ---")
-            state = env.reset()  # No override for historical env
+            current_date = historical_dates[episode % len(historical_dates)]
+
+            # Dynamically generate the paths for this episode using the templates
+            current_data_path_1 = hist_path_template_1.format(current_date, current_date)
+            print(current_data_path_1)
+
+            print(f"\n--- Starting Episode {episode + 1}/{num_episodes} using data from date: {current_date} ---")
+
+            # This is a crucial change. You need to override the data paths
+            # for your environment for each episode.
+            override_params = {
+                'data_paths': [current_data_path_1]
+            }
+            state = env.reset(override_bg_params=override_params)
 
         if args.mode != 'test-historical':
             agent.reset_agent_state()
