@@ -11,7 +11,9 @@ Character -
 """
 import os
 from datetime import datetime
+from time import strftime
 from typing import Dict
+import re
 import numpy as np
 import pandas as pd
 
@@ -25,6 +27,7 @@ from abides_multi_exchange.agents import (
     ArbitrageAgent,
     ExchangeAgent
 )
+from abides_multi_exchange.agents_gym import FinancialGymAgent
 from ..models import OrderSizeModel
 from ..oracle import DataOracle
 from abides_markets.utils import generate_latency_model
@@ -90,9 +93,22 @@ def build_config(params: Dict):
         else:
             return pomegranate_model_json
 
+    data_file_path = params['data_file_path']
+
+
+    date_match = re.search(r'(\d{4}-\d{2}-\d{2})', data_file_path)
+    print(date_match)
+
+    if date_match:
+        date_str = date_match.group(1)
+        print(f"Successfully extracted date {date_str} from filename.")
+    else:
+        # Fallback to the date in the config if the pattern isn't found
+        date_str = params.get('date', datetime.now().strftime('%Y-%m-%d'))
+        print(f"Warning: Could not extract date from filename. Falling back to date: {date_str}")
 
     # --- Date and Time ---
-    DATE = int(pd.to_datetime(date).to_datetime64())
+    DATE = int(pd.to_datetime(date_str).to_datetime64())
     MKT_OPEN = DATE + str_to_ns(f"{mkt_open_time}")
     MKT_CLOSE = DATE +str_to_ns(f"{end_time}")
 
@@ -113,16 +129,19 @@ def build_config(params: Dict):
     # This setup uses a single data source, meaning all exchanges share the same
     # fundamental price series. Arbitrage will come from temporary imbalances.
     print(" --- Dynamically configuring simulation from daily data ---")
-    data_file_path = params['data_file_path']
     try:
         df = pd.read_csv(data_file_path)
         daily_mean_price = df['PRICE'].mean()
         daily_volatility = df['PRICE'].std()
-        print(f"Data for {date}: Mean Price (cents) = {daily_mean_price:.2f}, Volatility = {daily_volatility:.2f}")
+
+        timestamp_seconds = DATE / 1_000_000_000.0
+        date_object = datetime.fromtimestamp(timestamp_seconds)
+        formatted_date = date_object.strftime("%Y%m%d")
+        print(f"Data for {formatted_date}: Mean Price (cents) = {daily_mean_price:.2f}, Volatility = {daily_volatility:.2f}")
     except FileNotFoundError:
         print(f"Warning: Data file not found at {data_file_path}. Using default parameters.")
-        daily_mean_price = 1000
-        daily_volatility = 50
+        daily_mean_price = 11_000_000
+        daily_volatility = 5_000
 
     symbols = {ticker: {'data_file': data_file_path}}
     oracle = DataOracle(MKT_OPEN, MKT_CLOSE, symbols)
@@ -237,6 +256,21 @@ def build_config(params: Dict):
         )
     agent_count += num_mm_agents
     agent_types.extend(["POVMarketMakerAgent"])
+
+    agents.extend([
+        FinancialGymAgent(
+            id=agent_count,
+            name="GYM_AGENT",
+            type="FinancialGymAgent",
+            symbol=ticker,
+            starting_cash=starting_cash,
+            log_orders=log_orders,
+            random_state=np.random.RandomState(seed=np.random.randint(low=0, high=2 ** 32)),
+        )
+    ])
+    agent_count += 1
+    agent_types.extend(["FinancialGymAgent"])
+
     # Noise Agents
     agents.extend([
         NoiseAgent(
