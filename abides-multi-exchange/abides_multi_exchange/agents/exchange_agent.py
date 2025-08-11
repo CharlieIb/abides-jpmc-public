@@ -825,7 +825,7 @@ class ExchangeAgent(FinancialAgent):
                         'time': event['time'],
                         'price': event['price'],
                         'quantity': event['quantity'],
-                        'is_buy':  True if event['side'] == 'BUY' else Side.ASK,
+                        'is_buy':  True if event['side'] == 'BUY' else False,
                         'exchange_id': self.id
                     }
                     for event in new_trade_events
