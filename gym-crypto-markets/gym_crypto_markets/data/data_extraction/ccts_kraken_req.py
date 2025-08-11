@@ -199,7 +199,7 @@ def process_dataframe_for_env(
 
         if scale_price:
             print("Scaling price to notional cents for ABIDES...")
-            df['price'] = (df['price'] * 100).round(4)
+            df['price'] = (df['price'] * 100).round(0)
 
         # Create helper columns for aggregation
         df['price_x_quantity'] = df['price'] * df['quantity']
