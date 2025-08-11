@@ -8,3 +8,7 @@ register(
     id='CryptoEnv-v2',
     entry_point='gym_crypto_markets.envs.crypto_env_v02:SubGymMarketsCryptoDailyInvestorEnv_v02',
 )
+register(
+    id='HistCryptoEnv-v2',
+    entry_point='gym_crypto_markets.envs.hist_crypto_env_v02:HistoricalTradingEnv_v02',
+)
