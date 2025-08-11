@@ -26,7 +26,33 @@ background_config_params:
 
   # --- Data Oracle Parameters ---
 #  data_file_path: "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/test/BTCUSDT-trades-2025-06-11-1s.csv"
-  data_file_path: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/test/BTCUSDT-trades-2025-06-11-1s.csv"
+  data_file_path: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2020-09-26/BTCUSDT-trades-2020-09-26-1s.csv"
+  data_paths:
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2020-09-26/BTCUSDT-trades-2020-09-26-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2020-10-19/BTCUSDT-trades-2020-10-19-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2021-05-21/BTCUSDT-trades-2021-05-21-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2021-07-17/BTCUSDT-trades-2021-07-17-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2021-08-12/BTCUSDT-trades-2021-08-12-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2022-01-18/BTCUSDT-trades-2022-01-18-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2022-05-22/BTCUSDT-trades-2022-05-22-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2022-05-28/BTCUSDT-trades-2022-05-28-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2022-10-30/BTCUSDT-trades-2022-10-30-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2023-03-20/BTCUSDT-trades-2023-03-20-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2023-07-02/BTCUSDT-trades-2023-07-02-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2023-08-16/BTCUSDT-trades-2023-08-16-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2023-09-22/BTCUSDT-trades-2023-09-22-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-02-03/BTCUSDT-trades-2024-02-03-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-02-17/BTCUSDT-trades-2024-02-17-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-03-13/BTCUSDT-trades-2024-03-13-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-04-29/BTCUSDT-trades-2024-04-29-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-06-21/BTCUSDT-trades-2024-06-21-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-07-02/BTCUSDT-trades-2024-07-02-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2025-06-09/BTCUSDT-trades-2025-06-09-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2025-06-11/BTCUSDT-trades-2025-06-11-1s.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2025-07-10/BTCUSDT-trades-2025-07-10-1s.csv"
+  historical_data_paths:
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2025-06-11/BTCUSDT-trades-2025-06-11-1m-hist.csv"
+  - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2025-06-11/kraken_btcusdt_trades_2025_06_11.csv"
 
   # --- Withdrawal Fee Parameters ---
   withdrawal_fees_enabled: True
@@ -88,7 +114,7 @@ gym_environment:
   debug_mode: True
   first_interval: "00:05:00"
 
-active_agent_config: "PPOAgent" # Change this to "MeanReversionAgent" to switch
+active_agent_config: "DQNAgent" # Change this to "MeanReversionAgent" to switch
 
 agent_configurations:
 
@@ -125,5 +151,8 @@ agent_configurations:
 
 
 simulation_runner:
-  num_episodes: 1
-  max_episode_steps: 1500
+  num_episodes: 100
+  save_weights:
+    enabled: True
+    directory: "weights"
+    frequency_episodes: 10 # Save weights every 10 episodes
