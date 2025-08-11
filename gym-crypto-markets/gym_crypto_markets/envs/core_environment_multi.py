@@ -46,7 +46,8 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         self.done: Optional[bool] = None
         self.info: Optional[Dict[str, Any]] = None
 
-    def reset(self):
+    def reset(self, override_bg_params: dict = None):
+        print("--- EXECUTING THE NEW, CORRECTED RESET METHOD ---")  # <-- ADD THIS LINE
         """
         Reset the state of the environment and returns an initial observation.
 
@@ -58,7 +59,10 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         # get seed to initialize random states for ABIDES
         seed = self.np_random.randint(low=0, high=2 ** 32, dtype="uint64")
         # instanciate back ground config state
-        background_config_args = self.background_config_pair[1]
+        background_config_args = self.background_config_pair[1].copy()
+        if override_bg_params:
+            print(override_bg_params)
+            background_config_args.update(override_bg_params)
         background_config_args.update(
             {"seed": seed, **self.extra_background_config_kvargs}
         )
@@ -66,41 +70,38 @@ class AbidesGymCoreEnv(gym.Env, ABC):
             **background_config_args
         )
         # instanciate gym agent and add it to config and gym object
-        nextid = len(background_config_state["agents"])
+        gym_agent_idx = -1
+        for i, agent in enumerate(background_config_state["agents"]):
+            if isinstance(agent, self.gymAgentConstructor):
+                gym_agent_idx = i
+                break
+
+        if gym_agent_idx == -1:
+            raise ValueError("Could not find a placeholder FinancialGymAgent in the provided background config.")
+
         gym_agent = self.gymAgentConstructor(
-            nextid,
-            "ABM",
+            id=background_config_state["agents"][gym_agent_idx].id, # Reuse the ID from the placeholder
+            name="GYM_AGENT", # Or get from placeholder
+            type="FinancialGymAgent",
+            symbol="ABM",
             first_interval=self.first_interval,
             wakeup_interval_generator=self.wakeup_interval_generator,
-            state_buffer_length=self.state_buffer_length,
+            state_buffer_length=self.state_buffer_length,          
             **self.extra_gym_agent_kvargs,
-        )
-        config_state = config_add_agents(background_config_state, [gym_agent])
-        self.gym_agent = config_state["agents"][-1]
-        # KERNEL
-        # instantiate the kernel object
+    )
+        background_config_state["agents"][gym_agent_idx] = gym_agent
+        self.gym_agent = gym_agent
 
         kernel_args = subdict(
-            config_state,
-            [
-                "start_time",
-                "stop_time",
-                "agents",
-                "agent_latency_model",
-                "default_computation_delay",
-                "custom_properties",
-                "skip_log"
-            ],
-        )
-
-        # kernel_args['skip_log'] = config_state.get('skip_log', False)
-
-        kernel = Kernel(
-            random_state=np.random.RandomState(seed=seed),
-            log_dir="",
-            **kernel_args
-        )
+                background_config_state,
+                [
+                    "start_time", "stop_time", "agents", "agent_latency_model",
+                    "default_computation_delay", "custom_properties", "skip_log"
+                ],
+            )
+        kernel = Kernel(random_state=np.random.RandomState(seed=seed), log_dir="", **kernel_args)
         kernel.initialize()
+        
         # kernel will run until GymAgent has to take an action
         raw_state = kernel.runner()
         state = self.raw_state_to_state(deepcopy(raw_state["result"]))
