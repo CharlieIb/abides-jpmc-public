@@ -248,6 +248,7 @@ class CoreBackgroundAgent(TradingAgent):
             "parsed_trade_data": parsed_trade_data_buffer,
         }
         self.raw_state.append(new)
+        self.parsed_trade_data_buffer.clear()
 
     def get_raw_state(self) -> Deque:
         return self.raw_state
