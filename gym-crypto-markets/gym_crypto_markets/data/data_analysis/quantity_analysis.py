@@ -9,7 +9,7 @@ import zipfile
 # --- Configuration ---
 # IMPORTANT: Replace 'path/to/your/historical_trades.csv' with the actual path to your data file.
 # This file should ideally contain a column with trade quantities.
-HISTORICAL_DATA_PATH = '/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/data_extraction/BTCUSDT-trades-2025-06-11.csv'
+HISTORICAL_DATA_PATH = '/gym_crypto_markets/data/data_extraction/archive/BTCUSDT-trades-2025-06-11.csv'
 #HISTORICAL_DATA_PATH = '/rds/projects/a/aranboll-ai-research/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/data_extraction/BTCUSDT-trades-2025-05.zip'
 CSV_FILE_IN_ZIP = 'BTCUSDT-trades-2025-05.csv'
 QUANTITY_COLUMN_INDEX = 2
