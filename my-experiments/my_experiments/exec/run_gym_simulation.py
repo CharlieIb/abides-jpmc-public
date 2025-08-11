@@ -3,21 +3,28 @@ import yaml
 import gym
 from tqdm import tqdm
 import importlib
+import os
+import csv
+from datetime import datetime
 
 # --- Local Imports ---
-# Make sure your custom environments and agents are importable
 import gym_crypto_markets
 
-from my_experiments.agents_multi import MeanReversionAgent  # Import your RL agent
-from gym_crypto_markets.configs.cdormsc02 import build_config  # Import your ABIDES config builder
+from gym_crypto_markets.configs.cdormsc02 import build_config
+from gym_crypto_markets.envs.hist_crypto_env_v02 import HistoricalTradingEnv_v02
 
 if __name__ == "__main__":
     # Parse arguments
     parser = argparse.ArgumentParser(description="Run an ABIDES-Gym simulation from a YAML config file.")
     parser.add_argument('config_path', type=str, help="Path to the YAML configuration file.")
+    parser.add_argument('--mode', type=str, default='train-abides',
+                        choices=['train-abides', 'train-historical', 'test-historical'],
+                        help="The mode to run the simulation in.")
+    parser.add_argument('--load_weights_path', type=str, default=None,
+                        help="Path to pre-trained agent weights to load (for testing).")
     args = parser.parse_args()
 
-    # Load my parameters from YAML
+    # Load parameters from YAML
     with open(args.config_path, 'r') as file:
         params = yaml.safe_load(file)
         print(f"Loaded configuration from {args.config_path}")
@@ -25,28 +32,67 @@ if __name__ == "__main__":
     # Extract parameter sections
     bg_params = params.get('background_config_params', {})
     env_params = params.get('gym_environment', {})
-    agent_configurations = params.get('agent_configurations', {})
     runner_params = params.get('simulation_runner', {})
+    active_agent_name = params.get('active_agent_config')
+    agent_params = params.get('agent_configurations', {}).get(active_agent_name)
 
-
-    active_agent_config = params.get("active_agent_config", None)
-    agent_params = agent_configurations.pop(active_agent_config, None)
+    save_params = runner_params.get('save_weights', {})
+    save_enabled = save_params.get('enabled', False)
+    save_dir = save_params.get('directory', 'weights')
+    save_freq_episodes = save_params.get('frequency_episodes', 1)
+    if save_enabled and not os.path.exists(save_dir):
+        os.makedirs(save_dir)
 
     use_confidence_sizing = agent_params.get('use_confidence_sizing', False)
     env_params["use_confidence_sizing"] = use_confidence_sizing
+
+    log_params = runner_params.get('performance_log', {})
+    log_enabled = log_params.get('enabled', True)
+    log_dir = log_params.get('directory', 'logs')
+    log_freq_steps = log_params.get('frequency_steps', 1)
+    if log_enabled and not os.path.exists(log_dir):
+        os.makedirs(log_dir)
+
+    log_file_path = None
+    csv_writer = None
+    csv_file = None
+    if log_enabled:
+        timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+        log_file_path = os.path.join(log_dir, f"{active_agent_name}_{args.mode}_log_{timestamp_str}.csv")
+        print(f"Performance logging enabled. Saving to: {log_file_path}")
+
+        # Open the file and create the writer
+        csv_file = open(log_file_path, 'w', newline='')
+        csv_writer = csv.writer(csv_file)
+
+        # Write the header row
+        header = [
+            'timestamp', 'episode', 'step', 'total_pnl', 'realised_pnl', 'reward',
+            'portfolio_value', 'total_holdings', 'cash', 'action', 'market_price'
+        ]
+        csv_writer.writerow(header)
+
     # Initialise Environment
     # Build the background config dictionary that abides-gym needs
-    abides_bg_config = build_config(bg_params)
+    if args.mode in ['train-abides']:
+        print("Initializing ABIDES simulation environment...")
+        abides_bg_config = build_config(bg_params)
 
-    # Get the environment ID from the config
-    env_id = env_params.pop('env_id', 'CryptoEnv-v2')
+        # Get the environment ID from the config
+        env_id = env_params.pop('env_id', 'CryptoEnv-v2')
+        # Create the Gym environment, passing the ABIDES config and other env params
+        env = gym.make(env_id, background_config=abides_bg_config, **env_params)
+    else:  # train-historical or test-historical
+        print("Initializing Historical backtesting environment...")
+        # We need to know the shape of the observation space and action space
+        # For simplicity, we can hardcode them or create a dummy ABIDES env to get them
+        # This assumes your state vector has 17 features and 7 actions
 
-    # Create the Gym environment, passing the ABIDES config and other env params
-    env = gym.make(
-        env_id,
-        background_config=abides_bg_config,
-        **env_params
-    )
+        env = HistoricalTradingEnv_v02(
+            bg_params=bg_params,
+            env_params=env_params,
+        )
+
     env.seed(bg_params.get('seed', 0))
     num_exchanges = env.unwrapped.num_exchanges
 
@@ -72,18 +118,38 @@ if __name__ == "__main__":
     agent.order_fixed_size = env.unwrapped.order_fixed_size
     agent.initial_cash = env.unwrapped.starting_cash
 
+    # If testing, turn of exploration rate and load pre-trained weights
+    if args.mode == 'test-historical':
+        if not args.load_weights_path:
+            raise ValueError("Must provide --load_weights_path in test mode.")
+        agent.load_weights(args.load_weights_path)
+        if hasattr(agent, 'exploration_rate'):
+            agent.exploration_rate = 0.0
 
     # Simulation Loop
     num_episodes = runner_params.get('num_episodes', 1)
-    max_steps = runner_params.get('max_episode_steps', 1500)
+    max_steps = runner_params.get('max_episode_steps', 10000)
+
+    abides_data_paths = bg_params.get('data_paths')
 
     for episode in range(num_episodes):
-        print(f"\n--- Starting Episode {episode + 1}/{num_episodes} ---")
         # Reset the environment and the agent's internal state for a new episode.
         # For older Gym versions (like 0.18.0), 'env.reset()' returns only the initial state.
-        state = env.reset()
-        agent.reset_agent_state()
+        if args.mode == 'train-abides':
+            # Select a new data path for this episode, cycling through the list
+            current_data_path = abides_data_paths[episode % len(abides_data_paths)]
+            print(
+                f"\n--- Starting Episode {episode + 1}/{num_episodes} using data: {os.path.basename(current_data_path)} ---")
 
+            # Create the override dictionary to pass to the reset method
+            override_params = {'data_file_path': current_data_path}
+            state = env.reset(override_bg_params=override_params)
+        else:
+            print(f"\n--- Starting Episode {episode + 1}/{num_episodes} ---")
+            state = env.reset()  # No override for historical env
+
+        if args.mode != 'test-historical':
+            agent.reset_agent_state()
         # Initialised episode-specific tracking variables.
         done = False
         episode_reward = 0
@@ -116,42 +182,79 @@ if __name__ == "__main__":
                 action_output = agent.choose_action(state, info)
                 new_state, reward, done, info = env.step(action_output)
 
-                if agent_class_name == "PPOAgent":
-                    # For PPO, update_policy just store the experience
-                    agent.update_policy(state, action_output, reward, new_state, done)
-                    # Learn only after collecting a full batch of experiences
-                    if (step_count +1) % agent.learn_interval == 0 or done:
-                        agent.learn()
-                else:
-                    # For DQN and other off_policy agents, learn after every step
-                    agent.update_policy(state, action_output, reward, new_state, done)
+                if args.mode.startswith('train'):
+                    if active_agent_name == "PPOAgent":
+                        agent.update_policy(state, action_output, reward, new_state, done)
+                        learn_interval = agent_params.get('learn_interval', 2048)
+                        if (step_count + 1) % learn_interval == 0 or done:
+                            print(f"\n--- Triggering PPO learn step at step {step_count} ---")
+                            agent.learn()
+                    else:  # For DQN and other off-policy agents
+                        agent.update_policy(state, action_output, reward, new_state, done)
 
 
-                # Update progress bar variables
-                market_data = info.get("market_data", {})
-                market_price_0 = market_data.get(0, {}).get("last_transaction", 0.0)
-                market_price_1 = market_data.get(1, {}).get("last_transaction", 0.0)
-                current_holdings = int(info.get("total_holdings", 0))
-                cash = int(info.get("cash", 0))
-                pbar.set_postfix(Exchange_0=f'{market_price_0/100:,.2f}',Exchange_1=f'{market_price_1/100:,.2f}', Holdings=current_holdings, Cash =f"${cash/100}")
-
-                if (agent.learn_interval and step_count % agent.learn_interval == 0) or done:
-                    print(f"\n--- Triggering PPO learn step at step {step_count} ---")
-                    agent.learn()
 
                 state = new_state
                 episode_reward += reward
                 step_count += 1
                 pbar.update(1)
 
+                if log_enabled and (step_count % log_freq_steps == 0 or done):
+                    portfolio_value = info.get("true_marked_to_market", 0.0)
+                    total_pnl = portfolio_value - agent.initial_cash
+
+                    # IMPORTANT: Your environment must be modified to calculate and return 'realised_pnl' in the info dict.
+                    realised_pnl = info.get('realised_pnl', 0.0)
+
+                    total_holdings = info.get("total_holdings", 0)
+                    cash = info.get("cash", 0.0)
+                    market_price = info.get("market_price", 0.0)  # Also requires env modification
+                    log_data = [
+                        datetime.now().isoformat(),
+                        episode + 1,
+                        step_count,
+                        f"{total_pnl / 100:.2f}",
+                        f"{realised_pnl / 100:.2f}",
+                        f"{reward:.6f}",
+                        f"{portfolio_value / 100:.2f}",
+                        total_holdings,
+                        f"{cash / 100:.2f}",
+                        str(action_output),
+                        f"{market_price / 100:.2f}"
+                    ]
+                    csv_writer.writerow(log_data)
+                    csv_file.flush()
+
+                # Update progress bar variables
+                if args.mode == 'train-abides':
+                    market_data = info.get("market_data", {})
+                    price_0 = market_data.get(0, {}).get("last_transaction", 0.0)
+                    price_1 = market_data.get(1, {}).get("last_transaction", 0.0)
+                    pbar.set_postfix(Exch0=f'{price_0 / 100:,.2f}', Exch1=f'{price_1 / 100:,.2f}',
+                                     Holdings=info.get("total_holdings", 0))
+                else:  # Historical mode
+                    pbar.set_postfix(Value=f'{info.get("portfolio_value", 0) / 100:,.2f}',
+                                     Holdings=info.get("total_holdings", 0))
+
 
         #  Episode Summary
-        final_val = info.get("true_marked_to_market", 0.0) / 100
-        initial_cash = env.unwrapped.starting_cash / 100
-        print(f"--- Episode {episode + 1} Summary ---")
-        print(f"  Final Portfolio Value: ${final_val:,.2f}")
-        print(f"  Total P&L: ${final_val - initial_cash:,.2f}")
+        if args.mode == 'train-abides':
+            final_val = info.get("true_marked_to_market", 0.0)
+        else:
+            final_val = info.get("true_marked_to_market", 0.0)
+        initial_cash = env.unwrapped.starting_cash
+        print(f"\n--- Episode {episode + 1} Summary ---")
+        print(f"  Final Portfolio Value: ${final_val/100:,.2f}")
+        print(f"  Total P&L: ${(final_val - initial_cash)/100:,.2f}")
+
+        # Save weights at the end of the episode if enabled
+        if save_enabled and args.mode.startswith('train') and (episode + 1) % save_freq_episodes == 0:
+            file_path = os.path.join(save_dir, f"{active_agent_name}_episode_{episode+1}.pth")
+            agent.save_weights(file_path)
+
 
     #  Cleanup
+    if csv_file:
+        csv_file.close()
     env.close()
     print("\n--------------------------Simulation finished--------------------------")
