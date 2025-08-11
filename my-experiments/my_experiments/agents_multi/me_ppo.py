@@ -101,7 +101,7 @@ class PPOAgent():
 
 
             # Create a distribution to sample actions from
-            dist = Categorical(action_probs)
+            dist = Categorical(masked_probs)
             action = dist.sample()
 
             log_prob = dist.log_prob(action)
@@ -199,6 +199,19 @@ class PPOAgent():
 
         # Clear memory for the next batch
         self.memory = []
+
+    def save_weights(self, file_path: str):
+        """Saves the policy network's weights to a file."""
+        print(f"\nSaving weights to {file_path}...")
+        torch.save(self.policy.state_dict(), file_path)
+        print("Weights saved.")
+
+    def load_weights(self, file_path: str):
+        """Loads weights into the policy and target networks from a file."""
+        print(f"\nLoading weights from {file_path}...")
+        self.policy.load_state_dict(torch.load(file_path))
+        self.policy.eval()  # Set to evaluation mode
+        print("Weights loaded.")
 
 
 
