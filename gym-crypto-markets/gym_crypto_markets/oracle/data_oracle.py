@@ -38,9 +38,13 @@ class DataOracle(Oracle):
         self.mkt_open: NanosecondTime = mkt_open
         self.mkt_close: NanosecondTime = mkt_close
         self.symbols: Dict[str, Dict[str, Any]] = symbols
+        self.price_data: Dict[str, pd.Series] = {}
 
         # The dictionary price_data holds the historical price series for each symbol.
-        self.price_data: Dict[str, pd.Series] = {}
+        self.simulation_date = pd.Timestamp(mkt_open).date()
+
+        for symbol, params in symbols.items():
+            self.price_data[symbol] = self.load_historical_data(params['data_file'])
 
         then = dt.datetime.now()
 
@@ -73,11 +77,19 @@ class DataOracle(Oracle):
         Returns:
             A pandas Series with timestamps as the index and prices as the values.
         """
-        df = pd.read_csv(file_path, index_col='TIMESTAMP', parse_dates=True)
-        if 'PRICE' not in df.columns:
-            raise ValueError("The data file must contain a 'Price' column.")
+        df = pd.read_csv(file_path)
+        ts_col = 'timestamp' if 'timestamp' in df.columns else 'TIMESTAMP'
+        df[ts_col] = pd.to_datetime(df[ts_col])
 
-        return (df['PRICE']).astype(int)
+        df[ts_col] = df[ts_col].apply(
+            lambda ts: pd.Timestamp.combine(self.simulation_date, ts.time())
+        )
+        df.set_index(ts_col, inplace=True)
+        price_col = 'PRICE' if 'PRICE' in df.columns else 'price'
+        if price_col not in df.columns:
+            raise ValueError(f"The data file {file_path} must contain a 'PRICE' or 'price' column.")
+
+        return (df[price_col]).astype(int)
 
     def get_daily_open_price(
             self, symbol: str, mkt_open: NanosecondTime, cents: bool = True
