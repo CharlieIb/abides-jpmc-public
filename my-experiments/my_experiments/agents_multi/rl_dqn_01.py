@@ -212,5 +212,21 @@ class DQNAgent():
         # Copy weights from the policy network to the target network at specified intervals
         if self.learn_step_counter % self.target_update_freq == 0:
             self.target_net.load_state_dict(self.policy_net.state_dict())
-            print(f"Target network updated for {self.learn_step_counter} steps")
+            # print(f"Target network updated for {self.learn_step_counter} steps")
+
+    def save_weights(self, file_path: str):
+        """Saves the policy network's weights to a file."""
+        print(f"\nSaving weights to {file_path}...")
+        torch.save(self.policy_net.state_dict(), file_path)
+        print("Weights saved.")
+
+    def load_weights(self, file_path: str):
+        """Loads weights into the policy and target networks from a file."""
+        print(f"\nLoading weights from {file_path}...")
+        self.policy_net.load_state_dict(torch.load(file_path))
+        # Crucially, also update the target network to match
+        self.target_net.load_state_dict(self.policy_net.state_dict())
+        self.policy_net.eval()  # Set to evaluation mode
+        self.target_net.eval()
+        print("Weights loaded.")
 
