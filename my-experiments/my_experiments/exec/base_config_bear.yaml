@@ -1,0 +1,159 @@
+background_config_params:
+  date: "20250611"
+  mkt_open_time: "00:10:00"
+  end_time: "23:59:59"
+  stdout_log_level: "INFO"
+  ticker: "ABM"
+  starting_cash: 10000000000  # Cash in this simulator is always in CENTS.
+
+  # --- Log orders: Individual agent logs ---
+  # These must be None or True (False will yield True)
+  log_order_params:
+    log_orders_value: True
+    log_orders_momentum: True
+    log_orders_arbitrage: True
+    log_orders_MM: True
+    log_orders_noise: None
+    log_orders: False
+
+  # --- Exchange Agent Parameters ---
+  exchange_params:
+    num_exchange_agents: 2
+    book_logging: True
+    book_log_depth: 10
+    stream_history_length: 500
+    exchange_log_orders: True # overall market logs and file creation
+
+  # --- Data Oracle Parameters ---
+#  data_file_path: "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/BTCUSDT-trades-2025-06-11-1s.csv"
+  data_file_path: "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2020-09-26/BTCUSDT-trades-2020-09-26-1s.csv"
+  data_paths:
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2020-09-26/BTCUSDT-trades-2020-09-26-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2020-10-19/BTCUSDT-trades-2020-10-19-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2021-05-21/BTCUSDT-trades-2021-05-21-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2021-07-17/BTCUSDT-trades-2021-07-17-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2021-08-12/BTCUSDT-trades-2021-08-12-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2022-01-18/BTCUSDT-trades-2022-01-18-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2022-05-22/BTCUSDT-trades-2022-05-22-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2022-05-28/BTCUSDT-trades-2022-05-28-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2022-10-30/BTCUSDT-trades-2022-10-30-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2023-03-20/BTCUSDT-trades-2023-03-20-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2023-07-02/BTCUSDT-trades-2023-07-02-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2023-08-16/BTCUSDT-trades-2023-08-16-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2023-09-22/BTCUSDT-trades-2023-09-22-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-02-03/BTCUSDT-trades-2024-02-03-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-02-17/BTCUSDT-trades-2024-02-17-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-03-13/BTCUSDT-trades-2024-03-13-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-04-29/BTCUSDT-trades-2024-04-29-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-06-21/BTCUSDT-trades-2024-06-21-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-07-02/BTCUSDT-trades-2024-07-02-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2025-06-09/BTCUSDT-trades-2025-06-09-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2025-06-11/BTCUSDT-trades-2025-06-11-1s.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2025-07-10/BTCUSDT-trades-2025-07-10-1s.csv"
+  historical_dates:
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2025-06-11/BTCUSDT-trades-2025-06-11-1m-hist.csv"
+  - "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2025-06-11/kraken_btcusdt_trades_2025_06_11.csv"
+
+  # --- Withdrawal Fee Parameters ---
+  withdrawal_fees_enabled: True
+  withdrawal_fee_multiplier: 15
+  # This is a multiplier of 1 "share", in this simulation we are using notional shares such that
+  # the withdrawal fee is 15x the average price
+
+  # --- Population Parameters ---
+  agent_populations:
+    num_value_agents: 100
+    num_momentum_agents: 13
+    num_arbitrage_agents: 3
+    # num_mm_agents = defined below
+    num_noise_agents: 10000
+
+  # --- Value Agent Parameters ---
+  value_params:
+    kappa: 1.67e-15 # appraisal of mean reversion
+    lambda_a: 5.7e-12  # arrival rate
+
+  # --- Momentum Agent Parameters ---
+  momentum_params:
+    min_size: 1
+    max_size: 10
+    poisson_arrival: True
+    wake_up_freq: "37s"
+    subscribe: False   # Explicitly set to polling mode
+
+
+  # --- Arbitrage Agents
+  arbitrage_params:
+    wake_up_freq: "60s"
+    min_profit_margin:  1
+    pov: 0.25
+    max_inventory: 10000000
+
+  # --- Market Maker Agents ---
+  # each elem of mm_params is tuple (window_size, pov, num_ticks, wake_up_freq, min_order_size)
+  mm_params:
+    wake_up_freq: "60s"
+    window_size: "adaptive"
+    pov: 0.025
+    num_ticks: 20 # Doubled from baseline, as BTCUSDT spreads are wider than stocks due ot higher volatility
+    min_order_size: 100
+    skew_beta: 0.1 # Was zero and tends to impact inventory risk aversion (don't kno why this was zero)
+    price_skew: 6 # response to momentum agents, able to shift response to momentum in market
+    level_spacing: 7 # Increase to create less dense OB with larger gaps between price levels  as you would expect to see in crypto
+    spread_alpha: 0.85 # Increased from baseline of 0.75, BTC tends to be more sensitive to volatility widening spreads
+    backstop_quantity: 0
+    cancel_limit_delay: 50
+
+    # --- General settings ---
+  default_computation_delay: 50
+
+
+gym_environment:
+  env_id: "CryptoEnv-v2" # The registered ID of your environment
+  timestep_duration: '60s'
+  debug_mode: True
+  first_interval: "00:05:00"
+
+active_agent_config: "DQNAgent" # Change this to "MeanReversionAgent" to switch
+
+agent_configurations:
+
+  MeanReversionAgent:
+    agent_module: "my_experiments.agents_multi"
+    agent_class: "MeanReversionAgent"
+    window: 300
+    num_std_dev: 2
+
+  DQNAgent:
+    agent_module: "my_experiments.agents_multi"
+    agent_class: "DQNAgent"
+    learning_rate: 0.001
+    discount_factor: 0.99
+    exploration_start: 1.0
+    exploration_end: 0.02
+    exploration_decay_steps: 10000
+    replay_buffer_size: 10000
+    batch_size: 32
+    target_update_freq: 100
+    use_confidence_sizing: True
+
+  PPOAgent:
+    agent_module: "my_experiments.agents_multi"
+    agent_class: "PPOAgent"
+    learning_rate: 0.0003
+    gamma: 0.99
+    gae_lambda: 0.95
+    policy_clip: 0.2
+    n_epochs: 10
+    batch_size: 64
+    learn_interval: 2048
+    use_confidence_sizing: True
+
+
+simulation_runner:
+  num_episodes: 50
+  max_episode_steps: 1440
+  save_weights:
+    enabled: True
+    directory: "weights"
+    frequency_episodes: 1 # Save weights every 10 episodes
