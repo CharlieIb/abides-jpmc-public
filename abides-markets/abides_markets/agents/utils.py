@@ -145,7 +145,7 @@ def keep_last_by_exchange_decorator(func):
         # Update the last state with the processed data
         last_state["parsed_mkt_data"] = processed_mkt_data
         last_state["parsed_volume_data"] = processed_volume_data
-        last_state["processed_trade_data"] = processed_trade_data
+        # last_state["processed_trade_data"] = processed_trade_data
 
 
         # The decorated function will receive a list containing only the processed last state
