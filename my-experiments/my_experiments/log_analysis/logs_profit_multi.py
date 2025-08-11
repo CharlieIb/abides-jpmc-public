@@ -2,7 +2,7 @@ import pandas as pd
 import argparse
 import sys
 import traceback
-
+from typing import List
 
 def calculate_and_print_pnl(agent_name: str, all_fills_df: pd.DataFrame, all_summary_df: pd.DataFrame):
     """
@@ -54,7 +54,7 @@ def calculate_and_print_pnl(agent_name: str, all_fills_df: pd.DataFrame, all_sum
         print("Cannot calculate Total PnL.")
 
 
-def analyze_simulation_logs(exchange_log_path: str, summary_log_path: str):
+def analyze_simulation_logs(exchange_log_paths: List[str], summary_log_path: str):
     """
     Main function to load and analyze simulation logs.
     """
@@ -63,15 +63,23 @@ def analyze_simulation_logs(exchange_log_path: str, summary_log_path: str):
         print(f"--- Loading summary log from: {summary_log_path} ---")
         summary_df = pd.read_pickle(summary_log_path, compression='bz2')
 
-        print(f"--- Loading Exchange log from: {exchange_log_path} ---")
-        exchange_df = pd.read_pickle(exchange_log_path, compression='bz2')
-
         agent_info_df = summary_df[summary_df['EventType'] == 'STARTING_CASH']
         id_to_strategy_map = pd.Series(
             agent_info_df.AgentStrategy.values,
             index=agent_info_df.AgentID
         ).to_dict()
         print("\n--- Agent ID to Strategy map created successfully. ---")
+
+        all_exchange_dfs = []
+        print("\n--- Loading Exchange Logs ---")
+        for path in exchange_log_paths:
+            print(f"  > Loading {path}")
+            df = pd.read_pickle(path, compression='bz2')
+            all_exchange_dfs.append(df)
+
+        print("--- Concatenating exchange logs... ---")
+        exchange_df = pd.concat(all_exchange_dfs, ignore_index=True)
+        print(f"Total events from {len(exchange_log_paths)} exchange(s): {len(exchange_df):,}")
 
         # --- Parse Exchange Log for Executed Trades ---
         print("--- Parsing event data from exchange log... ---")
@@ -112,7 +120,8 @@ def analyze_simulation_logs(exchange_log_path: str, summary_log_path: str):
             'FinancialGymAgent',
             'ValueAgent',
             'MomentumAgent',
-            'AdaptivePOVMarketMakerAgent'
+            'AdaptivePOVMarketMakerAgent',
+            'ArbitrageAgent'
         ]
 
         for agent_name in agents_to_analyze:
@@ -132,7 +141,7 @@ def analyze_simulation_logs(exchange_log_path: str, summary_log_path: str):
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="Read and analyze ABIDES logs to calculate agent profit.")
-    parser.add_argument("exchange_log", type=str, help="Path to the EXCHANGE_AGENT.bz2 log file.")
+    parser.add_argument("exchange_log", nargs='+', type=str, help="Path(s) to the EXCHANGE_AGENT.bz2 log file.")
     parser.add_argument("summary_log", type=str, help="Path to the summary_log.bz2 file.")
     args = parser.parse_args()
 
