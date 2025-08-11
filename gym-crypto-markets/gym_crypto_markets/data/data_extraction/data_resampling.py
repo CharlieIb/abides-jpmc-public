@@ -20,8 +20,8 @@ def resample_price_data(
             names=['PRICE', 'TIMESTAMP']
         )
 
-        print("Converting timestamp from unit 'us'...")
-        df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'], unit='us', errors='raise')
+        print("Converting timestamp from unit 'ms'...")
+        df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'], unit='ms', errors='raise')
 
         df.set_index('TIMESTAMP', inplace=True)
 
@@ -30,7 +30,7 @@ def resample_price_data(
         if scale_price:
             print("Scaling price to notional cents for ABIDES...")
             df['PRICE'] = pd.to_numeric(df['PRICE'], errors='coerce')
-            df['PRICE'] = (df['PRICE'] * 100).round(4)
+            df['PRICE'] = (df['PRICE'] * 100).round(0)
 
         print(f"Resampling data to '{freq}' frequency...")
         price_series = df['PRICE'].resample(freq).last()
