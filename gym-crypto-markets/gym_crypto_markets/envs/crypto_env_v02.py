@@ -414,46 +414,47 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
                 "exchange_id": exchange_id
             }]
         # --- Action 5: TRANSFER_FROM_0_TO_1 ---
-        elif action == 5:
-            from_exchange = 1
-            to_exchange = 0
-            holdings_on_source = self.gym_agent.holdings_by_exchange.get(from_exchange, {}).get("ABM", 0)
-            self.realised_pnl -= self.gym_agent.withdrawal_fees.get(from_exchange).get("ABM", self.gym_agent.withdrawal_fees.get(from_exchange).get("default", 0))
+        elif action in [5, 6] and self.num_exchanges > 1:
+            if action == 5:
+                from_exchange = 1
+                to_exchange = 0
+                holdings_on_source = self.gym_agent.holdings_by_exchange.get(from_exchange, {}).get("ABM", 0)
+                self.realised_pnl -= self.gym_agent.withdrawal_fees.get(from_exchange).get("ABM", self.gym_agent.withdrawal_fees.get(from_exchange).get("default", 0))
 
-            if holdings_on_source < trade_size:
-                print(
-                    f"INFO: Agent tried to TFR {trade_size} from Exch {from_exchange} but only holds {holdings_on_source}. Overriding to HOLD.")
+                if holdings_on_source < trade_size:
+                    print(
+                        f"INFO: Agent tried to TFR {trade_size} from Exch {from_exchange} but only holds {holdings_on_source}. Overriding to HOLD.")
+                    return []
+                return [{
+                        "type": "TFR",
+                        "from_exchange": from_exchange,
+                        "to_exchange": to_exchange,
+                        "size": trade_size,
+                    }]
+
+            # --- Action 6: TRANSFER_FROM_1_TO_0 ---
+
+            elif action == 6:
+                from_exchange = 0
+                to_exchange = 1
+
+                holdings_on_source = self.gym_agent.holdings_by_exchange.get(from_exchange, {}).get("ABM", 0)
+                self.realised_pnl -= self.gym_agent.withdrawal_fees.get(from_exchange).get("ABM", self.gym_agent.withdrawal_fees.get(from_exchange).get("default", 0))
+                if holdings_on_source < trade_size:
+                    print(
+                        f"INFO: Agent tried to TFR {trade_size} from Exch {from_exchange} but only holds {holdings_on_source}. Overriding to HOLD.")
+                    return []
+
+                return [{
+                        "type": "TFR",
+                        "from_exchange": from_exchange,
+                        "to_exchange": to_exchange,
+                        "size": trade_size,
+                    }]
+
+            else:
+                print(f"Unknown action {action} received. Defaulting to HOLD.")
                 return []
-            return [{
-                    "type": "TFR",
-                    "from_exchange": from_exchange,
-                    "to_exchange": to_exchange,
-                    "size": trade_size,
-                }]
-
-        # --- Action 6: TRANSFER_FROM_1_TO_0 ---
-
-        elif action == 6:
-            from_exchange = 0
-            to_exchange = 1
-
-            holdings_on_source = self.gym_agent.holdings_by_exchange.get(from_exchange, {}).get("ABM", 0)
-            self.realised_pnl -= self.gym_agent.withdrawal_fees.get(from_exchange).get("ABM", self.gym_agent.withdrawal_fees.get(from_exchange).get("default", 0))
-            if holdings_on_source < trade_size:
-                print(
-                    f"INFO: Agent tried to TFR {trade_size} from Exch {from_exchange} but only holds {holdings_on_source}. Overriding to HOLD.")
-                return []
-
-            return [{
-                    "type": "TFR",
-                    "from_exchange": from_exchange,
-                    "to_exchange": to_exchange,
-                    "size": trade_size,
-                }]
-
-        else:
-            print(f"Unknown action {action} received. Defaulting to HOLD.")
-            return []
 
     def _get_action_mask(self) -> np.ndarray:
         """
@@ -468,17 +469,22 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         if self.gym_agent.cash <= 0:
             mask[1] = 0 # Disable BUY on Exchange 0
             mask[3] = 0 # Disable BUY on Exchange 1
+        if self.num_exchanges == 2:
+            # Rule 2: Check holdings for transfer actions
+            # action 5: TFR from 1 to 0
+            holdings_on_exch1 = self.gym_agent.holdings_by_exchange.get(1, {}).get("ABM", 0)
+            if holdings_on_exch1 < self.order_fixed_size:
+                mask[5] = 0  # Disable TFR from Exchange 1
 
-        # Rule 2: Check holdings for transfer actions
-        # action 5: TFR from 1 to 0
-        holdings_on_exch1 = self.gym_agent.holdings_by_exchange.get(1, {}).get("ABM", 0)
-        if holdings_on_exch1 < self.order_fixed_size:
-            mask[5] = 0  # Disable TFR from Exchange 1
-
-        # Action 6: TFR from 0 to 1
-        holdings_on_exch0 = self.gym_agent.holdings_by_exchange.get(0, {}).get("ABM", 0)
-        if holdings_on_exch0 < self.order_fixed_size:
-            mask[6] = 0  # Disable TFR from Exchange 0
+            # Action 6: TFR from 0 to 1
+            holdings_on_exch0 = self.gym_agent.holdings_by_exchange.get(0, {}).get("ABM", 0)
+            if holdings_on_exch0 < self.order_fixed_size:
+                mask[6] = 0  # Disable TFR from Exchange 0
+        else:
+            if self.num_actions > 3: mask[3] = 0
+            if self.num_actions > 4: mask[4] = 0
+            if self.num_actions > 5: mask[5] = 0
+            if self.num_actions > 6: mask[6] = 0
 
         return mask
 
