@@ -9,7 +9,7 @@ import zipfile
 # --- Configuration ---
 # IMPORTANT: Replace 'path/to/your/historical_trades.csv' with the actual path to your data file.
 # This file should ideally contain a column with trade quantities.
-HISTORICAL_DATA_PATH = '/gym_crypto_markets/data/data_extraction/archive/BTCUSDT-trades-2025-06-11.csv'
+HISTORICAL_DATA_PATH = '/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/data_extraction/archive/BTCUSDT-trades-2025-06-11.csv'
 #HISTORICAL_DATA_PATH = '/rds/projects/a/aranboll-ai-research/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/data_extraction/BTCUSDT-trades-2025-05.zip'
 CSV_FILE_IN_ZIP = 'BTCUSDT-trades-2025-05.csv'
 QUANTITY_COLUMN_INDEX = 2
@@ -252,7 +252,7 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
 
 # --- Main Execution ---
 if __name__ == "__main__":
-    historical_trades_df = load_historical_data(HISTORICAL_DATA_PATH, CSV_FILE_IN_ZIP, QUANTITY_COLUMN_INDEX,
+    historical_trades_df = load_historical_data(HISTORICAL_DATA_PATH, None, QUANTITY_COLUMN_INDEX,
                                                 QUANTITY_COLUMN_NAME)
 
     if not historical_trades_df.empty:
