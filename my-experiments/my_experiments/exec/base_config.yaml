@@ -25,7 +25,6 @@ background_config_params:
     exchange_log_orders: True # overall market logs and file creation
 
   # --- Data Oracle Parameters ---
-#  data_file_path: "/rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/test/BTCUSDT-trades-2025-06-11-1s.csv"
   data_file_path: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2020-09-26/BTCUSDT-trades-2020-09-26-1s.csv"
   data_paths:
   - "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2020-09-26/BTCUSDT-trades-2020-09-26-1s.csv"
@@ -76,6 +75,7 @@ background_config_params:
   historical_templates:
     binance: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/{}/BTCUSDT-trades-{}-1m-hist.csv"
     kraken: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/{}/kraken_btcusdt_trades_{}.csv"
+
   # --- Withdrawal Fee Parameters ---
   withdrawal_fees_enabled: True
   withdrawal_fee_multiplier: 15
@@ -119,7 +119,7 @@ background_config_params:
     pov: 0.025
     num_ticks: 20 # Doubled from baseline, as BTCUSDT spreads are wider than stocks due ot higher volatility
     min_order_size: 100
-    skew_beta: 0.1 # Was zero and tends to impact inventory risk aversion (don't kno why this was zero)
+    skew_beta: 0 # could be altered
     price_skew: 6 # response to momentum agents, able to shift response to momentum in market
     level_spacing: 7 # Increase to create less dense OB with larger gaps between price levels  as you would expect to see in crypto
     spread_alpha: 0.85 # Increased from baseline of 0.75, BTC tends to be more sensitive to volatility widening spreads
@@ -174,8 +174,8 @@ agent_configurations:
 
 simulation_runner:
   num_episodes: 50
-  max_episode_steps: 1500
+  max_episode_steps: 5
   save_weights:
     enabled: True
     directory: "weights"
-    frequency_episodes: 1 # Save weights every 10 episodes
+    frequency_episodes: 1 # Save weights every 1 episodes
