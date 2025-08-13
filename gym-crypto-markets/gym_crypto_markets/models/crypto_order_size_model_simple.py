@@ -70,7 +70,7 @@ order_size = {
 }
 
 
-class OrderSizeModel:
+class OrderSizeModelSimple:
     def __init__(self, agent_type: str) -> None:
         if agent_type == "noise":
             self.model_config = order_size

@@ -28,7 +28,7 @@ from abides_multi_exchange.agents import (
     ExchangeAgent
 )
 from abides_multi_exchange.agents_gym import FinancialGymAgent
-from ..models import OrderSizeModel
+from ..models import OrderSizeModelSimple, OrderSizeModelNoise
 from ..oracle import DataOracle
 from abides_markets.utils import generate_latency_model
 
@@ -48,6 +48,7 @@ def build_config(params: Dict):
     end_time = params['end_time']
     ticker = params['ticker']
     starting_cash = params['starting_cash']
+    model_type = params.get('order_size_model_type', 'simple')
 
     log_order_params = params['log_order_params']
     log_orders_value = log_order_params['log_orders_value']
@@ -150,10 +151,18 @@ def build_config(params: Dict):
     sigma_n = daily_volatility * 0.05
     kappa = value_params['kappa']
     lambda_a = value_params['lambda_a']
-    NOISE_ORDER_SIZE_MODEL = OrderSizeModel('noise')
-    VALUE_ORDER_SIZE_MODEL = OrderSizeModel('value')
-    MOMENTUM_ORDER_SIZE_MODEL = OrderSizeModel('momentum')
 
+    if model_type == 'realistic':
+        print("--- Using agent-specific 'Realistic' order size models. ---" )
+        model = OrderSizeModelNoise
+    else: # 'simple'
+        print("--- Using single 'Simple' order size model for all agents. ---")
+        model = OrderSizeModelSimple
+
+
+    NOISE_ORDER_SIZE_MODEL = model('noise')
+    VALUE_ORDER_SIZE_MODEL = model('value')
+    MOMENTUM_ORDER_SIZE_MODEL = model('momentum')
 
 
     # Agent configuration

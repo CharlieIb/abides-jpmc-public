@@ -111,7 +111,7 @@ vm_order_size = {
 }
 
 
-class OrderSizeModel:
+class OrderSizeModelNoise:
     def __init__(self, agent_type: str) -> None:
         if agent_type == "noise":
             self.model_config = noise_order_size
