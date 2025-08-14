@@ -4,11 +4,11 @@ import os
 
 sys.path.append('../../../../..')
 
-from ..realism.realism_utils import make_orderbook_for_analysis, MID_PRICE_CUTOFF
+from gym_crypto_markets.util.plotting.realism_utils import make_orderbook_for_analysis, MID_PRICE_CUTOFF
 from matplotlib import pyplot as plt
 import matplotlib.dates as mdates
 import numpy as np
-from datetime import timedelta, datetime
+from datetime import timedelta
 import argparse
 import json
 import matplotlib

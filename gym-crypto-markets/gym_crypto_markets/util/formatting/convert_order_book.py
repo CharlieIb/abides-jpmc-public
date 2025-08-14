@@ -12,6 +12,27 @@ from ...util.formatting.convert_order_stream import get_year_month_day, get_star
 from tqdm import tqdm
 
 
+def flatten(items):
+    """Yield items from any nested iterable."""
+    for x in items:
+        if isinstance(x, (list, tuple)):
+            for y in flatten(x):
+                yield y
+        else:
+            yield x
+
+def get_book_df(processed_book_levels_df, quote_levels):
+    """Returns a dataframe of the orderbook from a list of dicts of the orderbook."""
+    cols = []
+    for i in range(1, quote_levels + 1):
+        cols.append("ask_price_{}".format(i))
+        cols.append("ask_size_{}".format(i))
+    for i in range(1, quote_levels + 1):
+        cols.append("bid_price_{}".format(i))
+        cols.append("bid_size_{}".format(i))
+    book_df = pd.DataFrame(processed_book_levels_df, columns=cols)
+    return book_df
+
 def get_larger_int_and_gap(a, b):
     return (True, a - b) if a >= b else (False, b - a)
 
@@ -21,42 +42,43 @@ def get_int_from_string(s):
     return int_list[0]
 
 
-def process_row(row, quote_levels):
-    """ Method takes row of unstacked orderbook log and processes into a dictionary representing a row of the LOBSTER-
-        ised DataFrame.
+def process_row(row_series, quote_levels):
     """
+    Processes a single row (as a pandas Series) of the orderbook.
+    This version directly accesses 'bids' and 'asks' lists.
+    """
+    row_dict = {}
 
-    row_arr = row[1].to_numpy()
+    # Directly get the 'bids' and 'asks' lists from the Series.
+    # Use .get() with a default empty list to handle cases where one might be missing.
+    bids = row_series.get('bids', [])
+    asks = row_series.get('asks', [])
 
-    bid_orders_idx = np.nonzero(row_arr < 0)
-    ask_orders_idx = np.nonzero(row_arr > 0)
+    # Sort bids descending by price (best bid is highest price)
+    # and asks ascending by price (best ask is lowest price).
+    bids = sorted(bids, key=lambda x: x[0], reverse=True)
+    asks = sorted(asks, key=lambda x: x[0])
 
-    ask_values = quote_levels[ask_orders_idx].to_numpy()
-    ask_volumes = row_arr[ask_orders_idx]
+    # Populate the dictionary with ask levels
+    for i in range(1, quote_levels + 1):
+        if i <= len(asks):
+            price, size = asks[i - 1]
+            row_dict[f"ask_price_{i}"] = price
+            row_dict[f"ask_size_{i}"] = size
+        else:
+            row_dict[f"ask_price_{i}"] = np.nan
+            row_dict[f"ask_size_{i}"] = np.nan
 
-    bid_values = quote_levels[bid_orders_idx].to_numpy()
-    bid_values = np.flip(bid_values)
-    bid_volumes = row_arr[bid_orders_idx]
-    bid_volumes = np.flip(-bid_volumes)
+    # Populate the dictionary with bid levels
+    for i in range(1, quote_levels + 1):
+        if i <= len(bids):
+            price, size = bids[i - 1]
+            row_dict[f"bid_price_{i}"] = price
+            row_dict[f"bid_size_{i}"] = size
+        else:
+            row_dict[f"bid_price_{i}"] = np.nan
+            row_dict[f"bid_size_{i}"] = np.nan
 
-    num_bids = bid_values.size
-    num_asks = ask_values.size
-
-    more_bids_then_asks, difference = get_larger_int_and_gap(num_bids, num_asks)
-
-    if more_bids_then_asks:
-        ask_values = np.pad(ask_values.astype(np.float32), (0, difference), 'constant', constant_values=np.nan)
-        ask_volumes = np.pad(ask_volumes.astype(np.float32), (0, difference), 'constant', constant_values=np.nan)
-    else:
-        bid_values = np.pad(bid_values.astype(np.float32), (0, difference), 'constant', constant_values=np.nan)
-        bid_volumes = np.pad(bid_volumes.astype(np.float32), (0, difference), 'constant', constant_values=np.nan)
-
-    ask_volumes_dict = {f"ask_size_{idx + 1}": ask_volumes[idx] for idx in range(len(ask_volumes))}
-    ask_values_dict = {f"ask_price_{idx + 1}": ask_values[idx] for idx in range(len(ask_values))}
-    bid_volumes_dict = {f"bid_size_{idx + 1}": bid_volumes[idx] for idx in range(len(bid_volumes))}
-    bid_values_dict = {f"bid_price_{idx + 1}": bid_values[idx] for idx in range(len(bid_values))}
-
-    row_dict = {**ask_volumes_dict, **ask_values_dict, **bid_volumes_dict, **bid_values_dict}
     return row_dict
 
 
@@ -111,44 +133,42 @@ def finalise_processing(orderbook_df, level):
 
 def is_wide_book(df):
     """ Checks if orderbook dataframe is in wide or skinny format. """
-    if isinstance(df.index, pd.core.index.MultiIndex):
+    if isinstance(df.index, pd.MultiIndex):
         return False
     else:
         return True
 
 
-def process_orderbook(df, level):
-    """ Method takes orderbook log and transforms into format amenable to "LOBSTER-ification"
+def process_orderbook(df, num_levels):
+    """Returns a dataframe of the orderbook."""
+    processed_book_levels = []
 
-    :param df: pd.DataFrame orderbook output by ABIDES
-    :param level: Maximum displayed level in book
-    :return:
-    """
+    # This loop correctly unpacks the tuple from iterrows() into 'index' and 'row_series'.
+    if not is_wide_book(df):  # skinny format (MultiIndex)
+        unique_timestamps = df.index.get_level_values(0).unique()
+        for ts in tqdm(unique_timestamps, desc="Processing order book"):
+            row_series = df.loc[ts]
+            # When grouped, the series might have a single 'bids'/'asks' row.
+            # We need to handle the structure properly.
+            if isinstance(row_series, pd.DataFrame):
+                # Take the first row if multiple events happened at the exact same ns
+                row_series = row_series.iloc[0]
+            row_dict = process_row(row_series, num_levels)
+            processed_book_levels.append(row_dict)
 
-    if not is_wide_book(df):  # orderbook skinny format
-        unstacked = df.unstack(level=-1)
-        quote_levels = unstacked.columns.levels[1]
-    else:  # orderbook wide format
-        unstacked = df
-        quote_levels = df.columns
+        book_df = get_book_df(processed_book_levels, num_levels)
+        book_df.index = unique_timestamps
 
-    # Make DataFrame reshaped to LOBSTER format
-    rows_list = []
-    for row in tqdm(unstacked.iterrows(), total=len(unstacked.index), desc="Processing order book"):
-        row_dict = process_row(row, quote_levels)
-        rows_list.append(row_dict)
+    else:  # wide format (single index)
+        for index, row_series in tqdm(df.iterrows(), total=len(df), desc="Processing order book"):
+            # We pass only the row_series (the data) to the processing function.
+            row_dict = process_row(row_series, num_levels)
+            processed_book_levels.append(row_dict)
 
-    nearly_lobster = pd.DataFrame(rows_list)
+        book_df = get_book_df(processed_book_levels, num_levels)
+        book_df.index = df.index
 
-    # Reorder columns
-    unordered_cols = list(nearly_lobster.columns)
-    new_col_list = reorder_columns(unordered_cols)
-    nearly_lobster = nearly_lobster[new_col_list]
-
-    # Clip to requested level and fill NaNs
-    orderbook_df = finalise_processing(nearly_lobster, level)
-
-    return orderbook_df
+    return book_df
 
 
 def save_formatted_order_book(orderbook_bz2, ticker, level, out_dir='.'):

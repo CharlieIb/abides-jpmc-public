@@ -6,33 +6,77 @@ import os
 
 
 def extract_events_from_stream(stream_df, event_type):
-    """ Extracts specific event from stream.
-
     """
-    events = stream_df.loc[stream_df.EventType == event_type][['EventTime', 'Event']]
-    events_json = events['Event'].to_json(orient="records")
-    json_struct = json.loads(events_json)
-    # TODO : get rid of structs containing all `int` types
-    event_extracted = json_normalize(json_struct)
-    event_extracted = pd.merge(events['EventTime'].reset_index(), event_extracted, left_index=True, right_index=True)
+    Extracts specific event from stream.
+    """
+    # Filter for the correct event type
+    events = stream_df.loc[stream_df.EventType == event_type].copy()
 
-    if not event_extracted.empty:
-        event_extracted = event_extracted[['EventTime', 'order_id', 'limit_price', 'quantity', 'is_buy_order']]
-        event_extracted.rename(columns={'EventTime': 'TIMESTAMP',
-                                        'order_id': 'ORDER_ID',
-                                        'limit_price': 'PRICE',
-                                        'quantity': 'SIZE',
-                                        'is_buy_order': 'BUY_SELL_FLAG'}, inplace=True)
-    else:
-        event_extracted = pd.DataFrame({
-            'TIMESTAMP': [],
-            'ORDER_ID': [],
-            'PRICE': [],
-            'SIZE': [],
-            'BUY_SELL_FLAG': []
+    if events.empty:
+        return pd.DataFrame({
+            'TIMESTAMP': [], 'ORDER_ID': [], 'PRICE': [],
+            'SIZE': [], 'BUY_SELL_FLAG': []
         })
 
+    # Directly convert the 'Event' column (which contains dicts) to a DataFrame
+    # This avoids JSON serialization errors with special objects like <Side.BID>
+    event_details_df = pd.DataFrame(events['Event'].tolist())
+
+    # Create the 'is_buy_order' column based on the 'side' column's content
+    # .astype(str) handles the <Side.BID> object safely
+    event_details_df['is_buy_order'] = event_details_df['side'].astype(str).str.contains('BID')
+
+    # Combine the timestamp from the original frame with the new event details
+    event_details_df['EventTime'] = events['EventTime'].values
+
+    # Select and rename columns to the format the script expects
+    final_cols = {
+        'EventTime': 'TIMESTAMP',
+        'order_id': 'ORDER_ID',
+        'limit_price': 'PRICE',
+        'quantity': 'SIZE',
+        'is_buy_order': 'BUY_SELL_FLAG'
+    }
+
+    # Ensure all required columns exist before selecting
+    for col in final_cols.keys():
+        if col not in event_details_df.columns:
+            # Add missing column with default null value if not present
+            event_details_df[col] = pd.NA
+
+    event_extracted = event_details_df[list(final_cols.keys())]
+    event_extracted.rename(columns=final_cols, inplace=True)
     return event_extracted
+
+#
+# def extract_events_from_stream(stream_df, event_type):
+#     """ Extracts specific event from stream.
+#
+#     """
+#     events = stream_df.loc[stream_df.EventType == event_type][['EventTime', 'Event']]
+#     events_json = events['Event'].to_json(orient="records")
+#     json_struct = json.loads(events_json)
+#     # TODO : get rid of structs containing all `int` types
+#     event_extracted = json_normalize(json_struct)
+#     event_extracted = pd.merge(events['EventTime'].reset_index(), event_extracted, left_index=True, right_index=True)
+#
+#     if not event_extracted.empty:
+#         event_extracted = event_extracted[['EventTime', 'order_id', 'limit_price', 'quantity', 'is_buy_order']]
+#         event_extracted.rename(columns={'EventTime': 'TIMESTAMP',
+#                                         'order_id': 'ORDER_ID',
+#                                         'limit_price': 'PRICE',
+#                                         'quantity': 'SIZE',
+#                                         'is_buy_order': 'BUY_SELL_FLAG'}, inplace=True)
+#     else:
+#         event_extracted = pd.DataFrame({
+#             'TIMESTAMP': [],
+#             'ORDER_ID': [],
+#             'PRICE': [],
+#             'SIZE': [],
+#             'BUY_SELL_FLAG': []
+#         })
+#
+#     return event_extracted
 
 
 def seconds_since_midnight(s):
@@ -50,18 +94,18 @@ def convert_stream_to_format(stream_df, fmt="LOBSTER"):
     """
     event_dfs = []
     market_events = {
-        "LIMIT_ORDER": 1,
+        "LimitOrderMsg": 1,
         # "MODIFY_ORDER": 2, # causing errors in market replay
-        "ORDER_CANCELLED": 3,
-        "ORDER_EXECUTED": 4
+        "OrderCancelledMsg": 3,
+        "OrderExecutedMsg": 4
     }
     reversed_market_events = {val: key for key, val in market_events.items()}
-
     for event_name, lobster_code in market_events.items():
         event_df = extract_events_from_stream(stream_df, event_name)
         if event_df.empty:
             continue
         else:
+            event_df["TIMESTAMP"] = pd.to_datetime(event_df["TIMESTAMP"])
             event_df["Time"] = seconds_since_midnight(event_df["TIMESTAMP"])
             event_df["Type"] = lobster_code
             event_dfs.append(event_df)
