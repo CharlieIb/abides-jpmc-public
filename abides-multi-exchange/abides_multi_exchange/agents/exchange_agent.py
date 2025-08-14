@@ -273,7 +273,7 @@ class ExchangeAgent(FinancialAgent):
                 # Set the index to be the timestamp for better analysis.
                 df_book.set_index('QuoteTime', inplace=True)
                 # Write the log to a file named after the symbol.
-                self.write_log(df_book, filename=f'book_{symbol}')
+                self.write_log(df_book, filename=f'book_{symbol}_{self.id}')
                 print(f"Order book log for {symbol} written to file.")
 
 
