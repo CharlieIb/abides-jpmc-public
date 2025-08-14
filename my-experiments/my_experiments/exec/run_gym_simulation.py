@@ -21,6 +21,9 @@ if __name__ == "__main__":
     parser.add_argument('--mode', type=str, default='train-abides',
                         choices=['train-abides', 'train-historical', 'test-historical', 'train-historical-se', 'train-abides-se'],
                         help="The mode to run the simulation in.")
+    parser.add_argument('--agent', type=str, default=None,
+                        choices=['MeanReversionAgent', 'DQNAgent', 'PPOAgent', 'SETripleBarrier', 'METripleBarrier'],
+                        help="Specify the agent configuration to use from the YAML file (e.g., SingleExchangeAgent).")
     parser.add_argument('--load_weights_path', type=str, default=None,
                         help="Path to pre-trained agent weights to load (for testing).")
     args = parser.parse_args()
@@ -58,8 +61,20 @@ if __name__ == "__main__":
 
     env_params = params.get('gym_environment', {})
     runner_params = params.get('simulation_runner', {})
-    active_agent_name = params.get('active_agent_config')
+    if args.agent:
+        active_agent_name = args.agent
+        print(f"Using agent specified by command line: --agent {active_agent_name}")
+    else:
+        # Fall back to the YAML file if --agent is not provided
+        active_agent_name = params.get('active_agent_config')
+        print(f"Using default agent from YAML config: {active_agent_name}")
+
+    if not active_agent_name:
+        raise ValueError("No agent specified. Provide --agent or set 'active_agent_config' in the YAML file.")
+
     agent_params = params.get('agent_configurations', {}).get(active_agent_name)
+    if not agent_params:
+        raise ValueError(f"Could not find configuration for agent '{active_agent_name}' in the YAML file.")
 
     save_params = runner_params.get('save_weights', {})
     save_enabled = save_params.get('enabled', False)
