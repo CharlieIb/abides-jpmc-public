@@ -77,11 +77,7 @@ class DQNAgent():
         Resets the agent's state for a new episode.
         This is primarily used to reset the exploration rate.
         """
-        self.exploration_rate = self.exploration_start
-        # Optionally, you could reset the learn_step_counter if you want the
-        # Exploration decay to be per-episode rather than across all episodes.
-        # self.learn_step_counter = 0
-        print(f"Agent state reset. Exploration rate is back to {self.exploration_rate:.2f}")
+        pass
 
 
     def choose_action(self, state, info=None):
