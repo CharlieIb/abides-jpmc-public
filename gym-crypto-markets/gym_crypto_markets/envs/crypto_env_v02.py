@@ -12,6 +12,7 @@ from abides_core.utils import str_to_ns
 from abides_core.generators import ConstantTimeGenerator
 
 from .markets_environment import AbidesGymMarketsEnv
+from ..configs import cdormsc02
 
 
 class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
@@ -47,10 +48,10 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             background_config_extra_kvargs={}
     ) -> None:
 
-        # Handle both config types (dict or str) Dict for yaml jobs and str from traditional execution
-        config_callable = None
-        config_args = {"end_time": mkt_close}
-        config_args.update(background_config_extra_kvargs)
+
+        config_callable = cdormsc02.build_config
+        base_config_args = {}
+
 
         if isinstance(background_config, str):
             # If a string is passed, import it as a module name (the old way).
@@ -59,18 +60,14 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             ], "Select one of cdormsc01, cdormsc02 as config"
             config_module = importlib.import_module(f"gym_crypto_markets.configs.{background_config}")
             config_callable = config_module.build_config
-            self.config = config_callable(**config_args)
-
-
+            base_config_args = {"end_time": mkt_close}
+            base_config_args.update(background_config_extra_kvargs)
 
         elif isinstance(background_config, dict):
             # If a dictionary is passed, use it directly (the new, flexible way).
             print("INFO: Using pre-built dictionary for background_config.")
-            self.config = background_config
-            # The parent class expects a function, so we create a simple lambda
-            # that just returns our pre-built dictionary.
-            config_callable = lambda **kwargs: self.config
-            config_args = {}
+            # When running from YAML, the dictionary is the set of base arguments.
+            base_config_args = background_config
         else:
             raise TypeError(f"background_config must be a string or a dict, but got {type(background_config)}")
 
@@ -78,8 +75,9 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         # background_config_args = {"end_time": mkt_close}
         # background_config_args.update(background_config_extra_kvargs)
         # self.config = self.background_config_module.build_config(**background_config_args)
-        self.num_exchanges = self.config.get("num_exchange_agents", 1)
-        self.mkt_open: NanosecondTime = self.config.get("mkt_open", str_to_ns("00:10:00"))
+
+        self.num_exchanges = base_config_args.get('exchange_params', {}).get("num_exchange_agents", 1)
+        self.mkt_open: NanosecondTime = base_config_args.get("mkt_open", str_to_ns("00:10:00"))
         self.mkt_close: NanosecondTime = str_to_ns(mkt_close)
         self.timestep_duration: NanosecondTime = str_to_ns(timestep_duration)
         self.starting_cash: int = starting_cash
@@ -143,12 +141,11 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             True,
             False,
         ], "reward_mode needs to be True or False"
-
         # Pass config to the parent AbidesGymMarketsEnv
-        background_config_args = {"end_time": self.mkt_close}
-        background_config_args.update(background_config_extra_kvargs)
+        base_config_args.update({"end_time": self.mkt_close})
+        base_config_args.update(background_config_extra_kvargs)
         super().__init__(
-            background_config_pair=(config_callable, config_args),
+            background_config_pair=(config_callable, base_config_args),
             wakeup_interval_generator=ConstantTimeGenerator(step_duration=self.timestep_duration),
             starting_cash=self.starting_cash,
             state_buffer_length=self.state_history_length,  # Now using the instance attribute
@@ -249,7 +246,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         """
         # First, call the parent's reset method to handle all the core
         # ABIDES simulation and kernel resetting. This returns the initial state.
-        initial_state = super().reset()
+        initial_state = super().reset(override_bg_params=override_bg_params)
 
         # Now, reset the custom attributes for this child environment.
         self.realised_pnl = 0.0

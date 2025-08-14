@@ -61,13 +61,12 @@ class AbidesGymCoreEnv(gym.Env, ABC):
         # instanciate back ground config state
         background_config_args = self.background_config_pair[1].copy()
         if override_bg_params:
-            print(override_bg_params)
             background_config_args.update(override_bg_params)
         background_config_args.update(
             {"seed": seed, **self.extra_background_config_kvargs}
         )
         background_config_state = self.background_config_pair[0](
-            **background_config_args
+            params=background_config_args
         )
         # instanciate gym agent and add it to config and gym object
         gym_agent_idx = -1
