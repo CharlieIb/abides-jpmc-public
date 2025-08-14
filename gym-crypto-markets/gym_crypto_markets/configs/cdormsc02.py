@@ -42,8 +42,27 @@ def build_config(params: Dict):
     seed = int(datetime.now().timestamp() * 1_000_000) % (2 ** 32 - 1)
     np.random.seed(seed)
 
-    # --- 1. Extract Parameters from the Dictionary ---
-    date = params['date']
+    # Extract Parameters from the Dictionary ---
+    # First sort out date
+    data_file_path = params['data_file_path']
+    date_str = None
+
+    # If this is a 'reset', then we need to check the file path and determine date
+    date_match = re.search(r'(\d{4}-\d{2}-\d{2})', data_file_path)
+    if date_match:
+        date_str = date_match.group(1)
+        print(f"Successfully extracted date '{date_str}' from file path.")
+
+    # If initial set upt, check if 'date' was passed in params as a fallback
+    elif 'date' in params:
+        date_str = params['date']
+        print(f"Could not find date in file path, using provided date: '{date_str}'")
+
+    # Check we have a date str.
+    if not date_str:
+        raise ValueError("Fatal: Simulation date could not be determined from data_file_path or a 'date' parameter.")
+
+
     mkt_open_time = params['mkt_open_time']
     end_time = params['end_time']
     ticker = params['ticker']
@@ -94,20 +113,6 @@ def build_config(params: Dict):
         else:
             return pomegranate_model_json
 
-    data_file_path = params['data_file_path']
-
-
-    date_match = re.search(r'(\d{4}-\d{2}-\d{2})', data_file_path)
-    print(date_match)
-
-    if date_match:
-        date_str = date_match.group(1)
-        print(f"Successfully extracted date {date_str} from filename.")
-    else:
-        # Fallback to the date in the config if the pattern isn't found
-        date_str = params.get('date', datetime.now().strftime('%Y-%m-%d'))
-        print(f"Warning: Could not extract date from filename. Falling back to date: {date_str}")
-
     # --- Date and Time ---
     DATE = int(pd.to_datetime(date_str).to_datetime64())
     MKT_OPEN = DATE + str_to_ns(f"{mkt_open_time}")
@@ -122,7 +127,8 @@ def build_config(params: Dict):
     MM_PARAMS = [
         (mm_params['window_size'], mm_params['pov'], mm_params['num_ticks'], mm_params['wake_up_freq'], mm_params['min_order_size']),
         (mm_params['window_size'], mm_params['pov'], mm_params['num_ticks'], mm_params['wake_up_freq'], mm_params['min_order_size']),
-        # You could add more tuples here for more MMs with different strategies
+        (mm_params['window_size'], mm_params['pov'], mm_params['num_ticks'], mm_params['wake_up_freq'], mm_params['min_order_size']),
+        (mm_params['window_size'], mm_params['pov'], mm_params['num_ticks'], mm_params['wake_up_freq'], mm_params['min_order_size']),
     ]
     num_mm_agents = len(MM_PARAMS)
 
