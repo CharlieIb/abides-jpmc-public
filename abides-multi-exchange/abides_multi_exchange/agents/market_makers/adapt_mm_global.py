@@ -15,7 +15,7 @@ from abides_markets.messages.marketdata import (
 )
 from abides_markets.messages.query import QuerySpreadResponseMsg, QueryTransactedVolResponseMsg
 from abides_markets.orders import Side
-from .trading_agent import TradingAgent
+from abides_multi_exchange.agents.trading_agent import TradingAgent
 
 ANCHOR_TOP_STR = "top"
 ANCHOR_BOTTOM_STR = "bottom"
