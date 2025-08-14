@@ -4,14 +4,14 @@ import numpy as np
 from pathlib import Path
 p = str(Path(__file__).resolve().parents[1])  # directory one level up from this file
 sys.path.append(p)
-from ...util.formatting.convert_order_book import process_orderbook, is_wide_book
-from ...util.formatting.convert_order_stream import convert_stream_to_format
+from gym_crypto_markets.util.formatting.convert_order_book import process_orderbook, is_wide_book
+from gym_crypto_markets.util.formatting.convert_order_stream import convert_stream_to_format
 import itertools
 from bisect import bisect
 from matplotlib.cm import get_cmap
 import os
 import warnings
-from ...util.util import get_value_from_timestamp
+from gym_crypto_markets.util.util import get_value_from_timestamp
 
 
 MID_PRICE_CUTOFF = 10000  # Price above which mid price is set as `NaN` and subsequently forgotten. WARNING: This
@@ -94,7 +94,8 @@ def augment_with_VWAP(merged):
     merged['VWAP'] = merged['VWAP']
     merged = merged.set_index('index')
     merged = merged.drop(columns=['level_0'])
-    del merged.index.name
+
+    merged.index.name = None
 
     return merged
 
@@ -118,6 +119,8 @@ def make_orderbook_for_analysis(stream_path, orderbook_path, num_levels=5, ignor
 
     stream_df = pd.read_pickle(stream_path)
     orderbook_df = pd.read_pickle(orderbook_path)
+    if pd.api.types.is_numeric_dtype(orderbook_df.index):
+        orderbook_df.index = pd.to_datetime(orderbook_df.index, unit='ns')
 
     stream_processed = convert_stream_to_format(stream_df.reset_index(), fmt='plot-scripts')
     stream_processed = stream_processed.set_index('TIMESTAMP')
