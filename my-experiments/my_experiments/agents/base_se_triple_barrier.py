@@ -159,3 +159,5 @@ class SingleExchangeTripleBarrierAgent:
         self.profit_exits = 0
         self.loss_exits = 0
         self.time_exits = 0
+    def save_weights(self, filepath):
+        pass

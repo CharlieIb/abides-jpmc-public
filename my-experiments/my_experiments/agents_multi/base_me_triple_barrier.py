@@ -148,3 +148,6 @@ class MultiExchangeTripleBarrierAgent:
 
     def update_policy(self,state, action_output, reward, new_state, done):
         pass
+
+    def save_weights(self, filepath):
+        pass

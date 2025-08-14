@@ -14,6 +14,8 @@ import gym_crypto_markets
 
 from gym_crypto_markets.configs.cdormsc02 import build_config
 from gym_crypto_markets.envs.hist_crypto_env_v02 import HistoricalTradingEnv_v02
+from my_experiments.agents import SingleExchangeTripleBarrierAgent
+from my_experiments.agents_multi import MultiExchangeTripleBarrierAgent
 
 if __name__ == "__main__":
     # Parse arguments
@@ -368,7 +370,7 @@ if __name__ == "__main__":
         print(f"  Final Portfolio Value: ${final_val/100:,.2f}")
         print(f"  Total P&L: ${final_pnl:,.2f}")
 
-        if log_enabled:
+        if log_enabled and (isinstance(agent, SingleExchangeTripleBarrierAgent) or isinstance(agent, MultiExchangeTripleBarrierAgent)):
             # Get diagnostics from the agent
             diagnostics = agent.get_episode_diagnostics()
 
@@ -400,7 +402,8 @@ if __name__ == "__main__":
             summary_csv_file.flush()
 
         # Save weights at the end of the episode if enabled
-        if save_enabled and args.mode.startswith('train') and (episode + 1) % save_freq_episodes == 0:
+        if (save_enabled and args.mode.startswith('train') and (episode + 1) % save_freq_episodes == 0 and
+                (not isinstance(agent, SingleExchangeTripleBarrierAgent) or not isinstance(agent, MultiExchangeTripleBarrierAgent))):
             file_path = os.path.join(save_dir, f"{active_agent_name}_episode_{episode+1}.pth")
             agent.save_weights(file_path)
 
