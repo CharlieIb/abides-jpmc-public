@@ -682,7 +682,9 @@ class TradingAgent(FinancialAgent):
             exchange_id: The ID of the exchange to send the orders to.
             orders: A list of Orders to place with the exchange as a single batch.
         """
-
+        # if self.type == "ArbitrageAgent":
+        #     for order in orders:
+        #         print(f"{self.name} placing order for {order.quantity} on exchange {exchange_id}")
         messages = []
 
         for order in orders:
@@ -806,7 +808,7 @@ class TradingAgent(FinancialAgent):
         Arguments:
             order: The order that has been executed by the exchange.
         """
-        # print(f"{self.id}:{self.name} Received notification of execution for {order.order_id} from Exchange {exchange_id} ")
+        # print(f"{self.id}:{self.name} Received notification of execution for {order.quantity} from Exchange {exchange_id} ")
         logger.debug(f"Received notification of execution for {order.order_id} from Exchange {exchange_id} ")
 
         if self.log_orders:
