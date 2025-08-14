@@ -29,6 +29,12 @@ class MultiExchangeTripleBarrierAgent:
         self.long_positions = deque()
         self.short_positions = deque()
         self.current_step = 0
+
+        # Diagnostic counters
+        self.profit_exits = 0
+        self.loss_exits = 0
+        self.time_exits = 0
+
         print(f"MultiPositionAgent initialized with limits: {max_long_positions} Long, {max_short_positions} Short.")
 
     def _get_all_exchange_prices(self, observation: np.ndarray) -> list:
@@ -39,9 +45,8 @@ class MultiExchangeTripleBarrierAgent:
         return prices
 
     def _get_entry_signal(self, observation: np.ndarray) -> str:
-        # Placeholder for your entry logic (e.g., VWAP momentum)
         most_recent_return = observation[-1][0]
-        if most_recent_return > 0.0001: # Adding a small threshold
+        if most_recent_return > 0.0001:
             return 'BUY'
         elif most_recent_return < -0.0001:
             return 'SELL'
@@ -67,20 +72,44 @@ class MultiExchangeTripleBarrierAgent:
         # --- 1. CHECK FOR EXITS (HIGHEST PRIORITY) ---
         # (This section is unchanged - the agent should always be able to exit)
         for i, trade in reversed(list(enumerate(self.long_positions))):
-            if best_bid >= trade["top_barrier"] or best_bid <= trade["bottom_barrier"] or self.current_step > trade["entry_step"] + self.time_limit_steps:
+            if best_bid >= trade["top_barrier"]:
+                self.profit_exits += 1
+                del self.long_positions[i]
+                return 2 + (2 * np.argmax(all_prices))
+            if best_bid <= trade["bottom_barrier"]:
+                self.loss_exits += 1
+                del self.long_positions[i]
+                return 2 + (2 * np.argmax(all_prices))
+            if self.current_step > trade["entry_step"] + self.time_limit_steps:
+                self.time_exits += 1
                 del self.long_positions[i]
                 return 2 + (2 * np.argmax(all_prices))
 
         for i, trade in reversed(list(enumerate(self.short_positions))):
-            if best_ask <= trade["top_barrier"] or best_ask >= trade["bottom_barrier"] or self.current_step > trade["entry_step"] + self.time_limit_steps:
+            if best_ask <= trade["top_barrier"]:
+                self.profit_exits += 1
+                del self.short_positions[i]
+                return 1 + (2 * np.argmin(all_prices))
+            if best_ask >= trade["bottom_barrier"]:
+                self.loss_exits += 1
+                del self.short_positions[i]
+                return 1 + (2 * np.argmin(all_prices))
+            if self.current_step > trade["entry_step"] + self.time_limit_steps:
+                self.time_exits += 1
                 del self.short_positions[i]
                 return 1 + (2 * np.argmin(all_prices))
 
-        # --- 2. CHECK FOR NEW ENTRIES (WITH POSITION LIMITS) ---
+        # Check for NEW ENTRY positions
         signal = self._get_entry_signal(observation)
 
+        cash = observation[4][0]  # Get current cash from the observation
+
+        order_size = 100  # currently because of fixed order size 100
+        estimated_cost = order_size * best_ask
+
+
         # Check for a new LONG position
-        if signal == 'BUY' and len(self.long_positions) < self.max_long_positions:
+        if signal == 'BUY' and len(self.long_positions) < self.max_long_positions and cash > estimated_cost:
             buy_exchange_id = np.argmin(all_prices)
             new_trade = self._create_new_trade(best_ask, "LONG")
             self.long_positions.append(new_trade)
@@ -98,8 +127,24 @@ class MultiExchangeTripleBarrierAgent:
         # HOLD
         return 0
 
-    def update_policy(self,state, action_output, reward, new_state, done):
-        pass
+    def get_episode_diagnostics(self):
+        total_trades = self.profit_exits + self.loss_exits + self.time_exits
+        win_rate = self.profit_exits / total_trades if total_trades > 0 else 0
+        return {
+            "total_trades_closed": total_trades,
+            "win_rate": win_rate,
+            "profit_exits": self.profit_exits,
+            "loss_exits": self.loss_exits,
+            "time_exits": self.time_exits
+        }
 
     def reset_agent_state(self):
+        self.long_positions.clear()
+        self.short_positions.clear()
+        self.current_step = 0
+        self.profit_exits = 0
+        self.loss_exits = 0
+        self.time_exits = 0
+
+    def update_policy(self,state, action_output, reward, new_state, done):
         pass

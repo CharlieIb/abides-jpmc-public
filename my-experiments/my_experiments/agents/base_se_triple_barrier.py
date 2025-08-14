@@ -111,15 +111,21 @@ class SingleExchangeTripleBarrierAgent:
         # If not exiting check for NEW ENTRY
         signal = self._get_entry_signal(observation)
 
+        signal = self._get_entry_signal(observation)
+        cash = observation[4][0]  # Get current cash from the observation
+
+        order_size = 100  # currently because of fixed order size 100
+        estimated_cost = order_size * current_price
+
         # Check for a new LONG position
-        if signal == 'BUY' and len(self.long_positions) < self.max_long_positions:
+        if signal == 'BUY' and len(self.long_positions) < self.max_long_positions and cash > estimated_cost:
             new_trade = self._create_new_trade(current_price, "LONG")
             self.long_positions.append(new_trade)
             # print(f"Opening new LONG position ({len(self.long_positions)}/{self.max_long_positions}).")
             return 1  # BUY action to open long
 
         # Check for a new SHORT position
-        if signal == 'SELL' and len(self.short_positions) < self.max_short_positions:
+        if signal == 'SELL' and len(self.short_positions) < self.max_short_positions :
             new_trade = self._create_new_trade(current_price, "SHORT")
             self.short_positions.append(new_trade)
             # print(f"Opening new SHORT position ({len(self.short_positions)}/{self.max_short_positions}).")
