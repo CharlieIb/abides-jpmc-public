@@ -24,6 +24,10 @@ if __name__ == "__main__":
     parser.add_argument('--agent', type=str, default=None,
                         choices=['MeanReversionAgent', 'DQNAgent', 'PPOAgent', 'SETripleBarrier', 'METripleBarrier'],
                         help="Specify the agent configuration to use from the YAML file (e.g., SingleExchangeAgent).")
+
+    parser.add_argument('--date', type=str, default=None,
+                        help="Specify a date for this simulation to run (if it is available then it will be loaded)")
+
     parser.add_argument('--load_weights_path', type=str, default=None,
                         help="Path to pre-trained agent weights to load (for testing).")
     args = parser.parse_args()
@@ -185,34 +189,42 @@ if __name__ == "__main__":
     num_episodes = runner_params.get('num_episodes', 1)
     max_steps = runner_params.get('max_episode_steps', 10000)
 
-    abides_data_paths = bg_params.get('data_paths')
-    if abides_data_paths:
-        random.shuffle(abides_data_paths)
-        print("Shuffled ABIDES data paths.")
+
+    # DATA PATH HANDLING
+    specific_date = None
 
     historical_dates = bg_params.get('historical_dates')
-    if historical_dates:
+    if args.date in historical_dates:
+        specific_date = args.date
+        print(f"\n Date {specific_date} is available, loading data into simulation .... \n")
+    elif historical_dates:
         random.shuffle(historical_dates)
         print("Shuffled historical dates.")
+
     historical_templates = bg_params.get('historical_templates')
     hist_path_template_1 = historical_templates.get('binance')
     hist_path_template_2 = historical_templates.get('kraken')
+    abides_path_template = bg_params.get('data_path_template')
+
 
     for episode in range(num_episodes):
         # Reset the environment and the agent's internal state for a new episode.
         # For older Gym versions (like 0.18.0), 'env.reset()' returns only the initial state.
+
+        # Select a new data path for this episode, cycling through the shuffled
+        current_date = historical_dates[episode % len(historical_dates)] if not specific_date else specific_date
+
+        specific_date = None # Comment this out if you want the episode to replay on the same date
+
         if args.mode == 'train-abides':
-            # Select a new data path for this episode, cycling through the list
-            current_data_path = abides_data_paths[episode % len(abides_data_paths)]
-            current_data_path = "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-04-29/BTCUSDT-trades-2024-04-29-1s.csv"
-            print(
-                f"\n--- Starting Episode {episode + 1}/{num_episodes} using data: {os.path.basename(current_data_path)} ---")
+            current_data_path = abides_path_template.format(current_date, current_date)
+
+            print(f"\n--- Starting Episode {episode + 1}/{num_episodes} using data: {os.path.basename(current_data_path)} ---")
 
             # Create the override dictionary to pass to the reset method
             override_params = {'data_file_path': current_data_path}
             state = env.reset(override_bg_params=override_params)
         elif args.mode in ['train-historical', 'test-historical']:
-            current_date = historical_dates[episode % len(historical_dates)]
 
             # Dynamically generate the paths for this episode using the templates
             current_data_path_1 = hist_path_template_1.format(current_date, current_date)
