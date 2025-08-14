@@ -6,6 +6,7 @@ import importlib
 import os
 import csv
 from datetime import datetime
+import random
 
 # --- Local Imports ---
 import gym_crypto_markets
@@ -52,6 +53,8 @@ if __name__ == "__main__":
         #1. force the number of exchanges to 1
         bg_params['exchange_params']['num_exchange_agents'] = 1
         print(f" > num_exchange_agents set to: 1")
+        bg_params['agent_populations']['num_arbitrage_agents'] = 0
+        print(f" > num_arbitrage_agents set to: 1")
 
     env_params = params.get('gym_environment', {})
     runner_params = params.get('simulation_runner', {})
@@ -94,16 +97,31 @@ if __name__ == "__main__":
         ]
         csv_writer.writerow(header)
 
+    summary_log_path = None
+    summary_csv_writer = None
+    summary_csv_file = None
+
+    if log_enabled:
+        summary_log_path = os.path.join(log_dir, f"{active_agent_name}_{args.mode}_episode_summary.csv")
+        print(f"Episode summary logging enabled. Saving to: {summary_log_path}")
+
+        summary_csv_file = open(summary_log_path, 'w', newline='')
+        summary_csv_writer = csv.writer(summary_csv_file)
+
+        summary_header = [
+            'episode', 'total_pnl', 'sharpe_ratio', 'win_rate',
+            'total_trades_closed', 'profit_exits', 'loss_exits', 'time_exits'
+        ]
+        summary_csv_writer.writerow(summary_header)
+
     # Initialise Environment
     # Build the background config dictionary that abides-gym needs
     if args.mode in ['train-abides', 'train-abides-se']:
         print("Initializing ABIDES simulation environment...")
-        abides_bg_config = build_config(bg_params)
-
         # Get the environment ID from the config
         env_id = env_params.pop('env_id', 'CryptoEnv-v2')
         # Create the Gym environment, passing the ABIDES config and other env params
-        env = gym.make(env_id, background_config=abides_bg_config, **env_params)
+        env = gym.make(env_id, background_config=bg_params, **env_params)
     else:  # train-historical, train-historical-se or test-historical
         print("Initializing Historical backtesting environment...")
         # We need to know the shape of the observation space and action space
@@ -153,8 +171,14 @@ if __name__ == "__main__":
     max_steps = runner_params.get('max_episode_steps', 10000)
 
     abides_data_paths = bg_params.get('data_paths')
+    if abides_data_paths:
+        random.shuffle(abides_data_paths)
+        print("Shuffled ABIDES data paths.")
 
     historical_dates = bg_params.get('historical_dates')
+    if historical_dates:
+        random.shuffle(historical_dates)
+        print("Shuffled historical dates.")
     historical_templates = bg_params.get('historical_templates')
     hist_path_template_1 = historical_templates.get('binance')
     hist_path_template_2 = historical_templates.get('kraken')
@@ -165,6 +189,7 @@ if __name__ == "__main__":
         if args.mode == 'train-abides':
             # Select a new data path for this episode, cycling through the list
             current_data_path = abides_data_paths[episode % len(abides_data_paths)]
+            current_data_path = "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2024-04-29/BTCUSDT-trades-2024-04-29-1s.csv"
             print(
                 f"\n--- Starting Episode {episode + 1}/{num_episodes} using data: {os.path.basename(current_data_path)} ---")
 
@@ -212,6 +237,9 @@ if __name__ == "__main__":
         step_count = 0
         info = {}
 
+        step_returns = []
+        previous_portfolio_value = env.unwrapped.starting_cash
+
         #  Initial State verification
         print(f"Initial State (Episode {episode + 1}):")
         print(f"  Global VWAP: {state[0][0]:.2f}")
@@ -225,9 +253,9 @@ if __name__ == "__main__":
 
         for ex_id in range(num_exchanges):
             start_index = 7 + (ex_id * 3)
-            print(f"  Exchange {ex_id} Imbalance: {state[start_index][0]:.4f}")
-            print(f"  Exchange {ex_id} Spread: {state[start_index + 1][0]:.2f}")
-            print(f"  Exchange {ex_id} Direction: {state[start_index + 2][0]:.2f}")
+            print(f"  Exchange {ex_id} VWAP difference: {state[start_index][0]:.4f}")
+            print(f"  Exchange {ex_id} TVI: {state[start_index + 1][0]:.2f}")
+            print(f"  Exchange {ex_id} Volatility: {state[start_index + 2][0]:.2f}")
         # The returns are now at the end of the state vector
         returns_start_index = 1 + (num_exchanges * 3)
         print(f"  Historical Global Returns: {state[returns_start_index:].flatten()}")
@@ -257,9 +285,17 @@ if __name__ == "__main__":
 
                 if log_enabled and (step_count % log_freq_steps == 0 or done):
                     portfolio_value = info.get("true_marked_to_market", 0.0)
+
+                    # For the summary log, to calc Sharped ratio
+                    if previous_portfolio_value > 0:  # Avoid division by zero
+                        # Calculate the percentage return for this step
+                        return_for_step = (portfolio_value - previous_portfolio_value) / previous_portfolio_value
+                        step_returns.append(return_for_step)
+
+                    previous_portfolio_value = portfolio_value
+                    # Update for the next step
                     total_pnl = portfolio_value - agent.initial_cash
 
-                    # IMPORTANT: Your environment must be modified to calculate and return 'realised_pnl' in the info dict.
                     realised_pnl = info.get('realised_pnl', 0.0)
 
                     total_holdings = info.get("total_holdings", 0)
@@ -299,9 +335,31 @@ if __name__ == "__main__":
         else:
             final_val = info.get("true_marked_to_market", 0.0)
         initial_cash = env.unwrapped.starting_cash
+        final_pnl = (final_val - initial_cash)/100
         print(f"\n--- Episode {episode + 1} Summary ---")
         print(f"  Final Portfolio Value: ${final_val/100:,.2f}")
-        print(f"  Total P&L: ${(final_val - initial_cash)/100:,.2f}")
+        print(f"  Total P&L: ${final_pnl:,.2f}")
+
+        if log_enabled:
+            # Get diagnostics from the agent
+            diagnostics = agent.get_episode_diagnostics()
+
+            # TODO: Calculate Sharpe Ratio for the episode if you have daily/step returns
+            # For now, we'll just log it as 0.0
+            sharpe_ratio = 0.0
+
+            summary_data = [
+                episode + 1,
+                f"{final_pnl:.2f}",
+                f"{sharpe_ratio:.4f}",
+                f"{diagnostics['win_rate']:.2%}",  # Format as percentage
+                diagnostics['total_trades_closed'],
+                diagnostics['profit_exits'],
+                diagnostics['loss_exits'],
+                diagnostics['time_exits']
+            ]
+            summary_csv_writer.writerow(summary_data)
+            summary_csv_file.flush()
 
         # Save weights at the end of the episode if enabled
         if save_enabled and args.mode.startswith('train') and (episode + 1) % save_freq_episodes == 0:
@@ -312,5 +370,7 @@ if __name__ == "__main__":
     #  Cleanup
     if csv_file:
         csv_file.close()
+    if summary_csv_file:
+        summary_csv_file.close()
     env.close()
     print("\n--------------------------Simulation finished--------------------------")

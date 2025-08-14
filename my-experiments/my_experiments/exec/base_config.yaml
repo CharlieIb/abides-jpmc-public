@@ -86,8 +86,8 @@ background_config_params:
 
   # --- Population Parameters ---
   agent_populations:
-    num_value_agents: 100
-    num_momentum_agents: 13
+    num_value_agents: 102
+    num_momentum_agents: 25
     num_arbitrage_agents: 3
     # num_mm_agents = defined below
     num_noise_agents: 10000
@@ -120,11 +120,11 @@ background_config_params:
     window_size: "adaptive"
     pov: 0.025
     num_ticks: 20 # Doubled from baseline, as BTCUSDT spreads are wider than stocks due ot higher volatility
-    min_order_size: 100
+    min_order_size: 1
     skew_beta: 0 # could be altered
-    price_skew: 6 # response to momentum agents, able to shift response to momentum in market
-    level_spacing: 7 # Increase to create less dense OB with larger gaps between price levels  as you would expect to see in crypto
-    spread_alpha: 0.85 # Increased from baseline of 0.75, BTC tends to be more sensitive to volatility widening spreads
+    price_skew: 4 # response to momentum agents, able to shift response to momentum in market
+    level_spacing: 6 # Increase to create less dense OB with larger gaps between price levels  as you would expect to see in crypto
+    spread_alpha: 0.8 # Increased from baseline of 0.75, BTC tends to be more sensitive to volatility widening spreads
     backstop_quantity: 0
     cancel_limit_delay: 50
 
@@ -138,7 +138,7 @@ gym_environment:
   debug_mode: True
   first_interval: "00:05:00"
 
-active_agent_config: "DQNAgent" # Change this to "MeanReversionAgent" to switch
+active_agent_config: "SETripleBarrier" # Change this to "MeanReversionAgent" to switch
 
 agent_configurations:
 
@@ -155,7 +155,7 @@ agent_configurations:
     discount_factor: 0.99
     exploration_start: 1.0
     exploration_end: 0.02
-    exploration_decay_steps: 4500
+    exploration_decay_steps: 10000
     replay_buffer_size: 10000
     batch_size: 32
     target_update_freq: 100
@@ -173,10 +173,29 @@ agent_configurations:
     learn_interval: 2048
     use_confidence_sizing: True
 
+  SETripleBarrier:
+    agent_module: "my_experiments.agents"
+    agent_class: "SingleExchangeTripleBarrierAgent"
+    profit_take_percent: 0.05  # 0.05%
+    stop_loss_percent: 0.03  # 0.03%
+    time_limit_steps: 30
+    max_long_positions: 10
+    max_short_positions: 5
+
+
+  METripleBarrier:
+    agent_module: "my_experiments.agents_multi"
+    agent_class: "MultiExchangeTripleBarrierAgent"
+    profit_take_percent: 0.05  # 0.05%
+    stop_loss_percent: 0.03  # 0.03%
+    time_limit_steps: 30
+    max_long_positions: 10
+    max_short_positions: 5
+
 
 simulation_runner:
-  num_episodes: 50
-  max_episode_steps: 5
+  num_episodes: 1
+  max_episode_steps: 1500
   save_weights:
     enabled: True
     directory: "weights"
