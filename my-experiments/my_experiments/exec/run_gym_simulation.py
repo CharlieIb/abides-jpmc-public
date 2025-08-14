@@ -7,6 +7,7 @@ import os
 import csv
 from datetime import datetime
 import random
+import numpy as np
 
 # --- Local Imports ---
 import gym_crypto_markets
@@ -371,9 +372,19 @@ if __name__ == "__main__":
             # Get diagnostics from the agent
             diagnostics = agent.get_episode_diagnostics()
 
-            # TODO: Calculate Sharpe Ratio for the episode if you have daily/step returns
-            # For now, we'll just log it as 0.0
             sharpe_ratio = 0.0
+
+            if len(step_returns) > 1 and np.std(step_returns) > 0:
+                # Calculate the raw Sharpe ratio for the period
+                # For high-frequency steps, the risk-free rate is assumed to be 0
+                mean_return = np.mean(step_returns)
+                std_dev_return = np.std(step_returns)
+
+                # Annualize it. For crypto (24/7) with 1-minute steps:
+                # 60 mins/hr * 24 hrs/day * 365 days/year
+                annualization_factor = np.sqrt(60 * 24 * 365)
+
+                sharpe_ratio = (mean_return / std_dev_return) * annualization_factor
 
             summary_data = [
                 episode + 1,
