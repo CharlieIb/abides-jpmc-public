@@ -299,3 +299,15 @@ class DQNAgent():
         self.target_net.eval()
         print("Weights loaded.")
 
+    def get_episode_diagnostics(self):
+        """Returns a dictionary of the episode's performance."""
+        win_rate = self.profit_exits / self.total_trades_closed if self.total_trades_closed > 0 else 0
+        return {
+            "total_trades_closed": self.total_trades_closed,
+            "win_rate": win_rate,
+            "profit_exits": self.profit_exits,
+            "loss_exits": self.loss_exits,
+            "time_exits": 0  # Not applicable to this agent
+        }
+
+
