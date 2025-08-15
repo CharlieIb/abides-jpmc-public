@@ -137,7 +137,7 @@ agent_configurations:
     replay_buffer_size: 10000
     batch_size: 32
     target_update_freq: 100
-    use_confidence_sizing: True
+    use_confidence_sizing: False
 
   PPOAgent:
     agent_module: "my_experiments.agents_multi"
@@ -172,8 +172,8 @@ agent_configurations:
 
 
 simulation_runner:
-  num_episodes: 1
-  max_episode_steps: 1500
+  num_episodes: 3
+  max_episode_steps: 100
   save_weights:
     enabled: True
     directory: "weights"

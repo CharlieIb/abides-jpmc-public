@@ -382,7 +382,7 @@ class TradingAgent(FinancialAgent):
             # Call the query_last_trade method, which subclasses may extend.
             # Also note if the market is closed.
             if message.mkt_closed:
-                self.mkt_closed = True
+                self.mkt_closed[sender_id] = True
 
             self.query_last_trade(sender_id, message.symbol, message.last_trade)
 
@@ -390,7 +390,7 @@ class TradingAgent(FinancialAgent):
             # Call the query_spread method, which subclasses may extend.
             # Also note if the market is closed.
             if message.mkt_closed:
-                self.mkt_closed = True
+                self.mkt_closed[sender_id] = True
 
             self.query_spread(
                 sender_id, message.symbol, message.last_trade, message.bids, message.asks, ""
@@ -400,13 +400,13 @@ class TradingAgent(FinancialAgent):
             # Call the query_order_stream method, which subclasses may extend.
             # Also note if the market is closed.
             if message.mkt_closed:
-                self.mkt_closed = True
+                self.mkt_closed[sender_id] = True
 
             self.query_order_stream(sender_id, message.symbol, message.orders)
 
         elif isinstance(message, QueryTransactedVolResponseMsg):
             if message.mkt_closed:
-                self.mkt_closed = True
+                self.mkt_closed[sender_id] = True
 
             self.query_transacted_volume(
                 sender_id, message.symbol, message.bid_volume, message.ask_volume

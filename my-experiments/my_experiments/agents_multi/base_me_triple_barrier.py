@@ -52,9 +52,9 @@ class MultiExchangeTripleBarrierAgent:
             return 'SELL'
         return 'HOLD'
 
-    def _create_new_trade(self, entry_price, direction):
+    def _create_new_trade(self, entry_price, direction, exchange_id):
         # Helper to create a trade dictionary
-        trade = {"direction": direction, "entry_price": entry_price, "entry_step": self.current_step}
+        trade = {"direction": direction, "entry_price": entry_price, "entry_step": self.current_step, "exchange_id": exchange_id}
         if direction == "LONG":
             trade["top_barrier"] = entry_price * (1 + self.profit_take_pct)
             trade["bottom_barrier"] = entry_price * (1 - self.stop_loss_pct)
@@ -69,61 +69,70 @@ class MultiExchangeTripleBarrierAgent:
         best_ask = min(all_prices) # Price to buy at
         best_bid = max(all_prices) # Price to sell at
 
-        # --- 1. CHECK FOR EXITS (HIGHEST PRIORITY) ---
-        # (This section is unchanged - the agent should always be able to exit)
-        for i, trade in reversed(list(enumerate(self.long_positions))):
-            if best_bid >= trade["top_barrier"]:
-                self.profit_exits += 1
-                del self.long_positions[i]
-                return 2 + (2 * np.argmax(all_prices))
-            if best_bid <= trade["bottom_barrier"]:
-                self.loss_exits += 1
-                del self.long_positions[i]
-                return 2 + (2 * np.argmax(all_prices))
-            if self.current_step > trade["entry_step"] + self.time_limit_steps:
-                self.time_exits += 1
-                del self.long_positions[i]
-                return 2 + (2 * np.argmax(all_prices))
+        # CHECK FOR EXITS
+        # Check to close a long position
+        if self.long_positions:
+            for i, trade in reversed(list(enumerate(self.long_positions))):
+                trade_exchange_id = trade["exchange_id"]
+                price_on_trade_exchange = all_prices[trade_exchange_id]
 
-        for i, trade in reversed(list(enumerate(self.short_positions))):
-            if best_ask <= trade["top_barrier"]:
-                self.profit_exits += 1
-                del self.short_positions[i]
-                return 1 + (2 * np.argmin(all_prices))
-            if best_ask >= trade["bottom_barrier"]:
-                self.loss_exits += 1
-                del self.short_positions[i]
-                return 1 + (2 * np.argmin(all_prices))
-            if self.current_step > trade["entry_step"] + self.time_limit_steps:
-                self.time_exits += 1
-                del self.short_positions[i]
-                return 1 + (2 * np.argmin(all_prices))
+                if price_on_trade_exchange >= trade["top_barrier"]:
+                    self.profit_exits += 1
+                    del self.long_positions[i]
+                    return 2 + (2 * trade_exchange_id)
+                if price_on_trade_exchange <= trade["bottom_barrier"]:
+                    self.loss_exits += 1
+                    del self.long_positions[i]
+                    return 2 + (2 * trade_exchange_id)
+                if self.current_step > trade["entry_step"] + self.time_limit_steps:
+                    self.time_exits += 1
+                    del self.long_positions[i]
+                    return 2 + (2 * trade_exchange_id)
 
-        # Check for NEW ENTRY positions
+        # Check to close a short position
+        if self.short_positions:
+            for i, trade in reversed(list(enumerate(self.short_positions))):
+                trade_exchange_id = trade["exchange_id"]
+                price_on_trade_exchange = all_prices[trade_exchange_id]
+
+                if price_on_trade_exchange <= trade["top_barrier"]:
+                    self.profit_exits += 1
+                    del self.short_positions[i]
+                    return 1 + (2 * trade_exchange_id)  # BUY to cover on correct exchange
+                if price_on_trade_exchange >= trade["bottom_barrier"]:
+                    self.loss_exits += 1
+                    del self.short_positions[i]
+                    return 1 + (2 * trade_exchange_id)
+                if self.current_step > trade["entry_step"] + self.time_limit_steps:
+                    self.time_exits += 1
+                    del self.short_positions[i]
+                    return 1 + (2 * trade_exchange_id)
+
+        # Check for new entry positions
         signal = self._get_entry_signal(observation)
-
         cash = observation[4][0]  # Get current cash from the observation
 
         order_size = 100  # currently because of fixed order size 100
-        estimated_cost = order_size * best_ask
 
-
-        # Check for a new LONG position
-        if signal == 'BUY' and len(self.long_positions) < self.max_long_positions and cash > estimated_cost:
+        # Check for a new long position
+        if signal == 'BUY' and len(self.long_positions) < self.max_long_positions:
             buy_exchange_id = np.argmin(all_prices)
-            new_trade = self._create_new_trade(best_ask, "LONG")
-            self.long_positions.append(new_trade)
-            print(f"Opening new LONG position ({len(self.long_positions)}/{self.max_long_positions}).")
-            return 1 + (2 * buy_exchange_id) # Return BUY action
+            best_ask = all_prices[buy_exchange_id]
+            estimated_cost = order_size * best_ask
 
-        # Check for a new SHORT position
+            if cash > estimated_cost:
+                new_trade = self._create_new_trade(best_ask, "LONG", buy_exchange_id)
+                self.long_positions.append(new_trade)
+                return 1 + (2 * buy_exchange_id)
+
+        # Check for a new short position
         if signal == 'SELL' and len(self.short_positions) < self.max_short_positions:
             sell_exchange_id = np.argmax(all_prices)
-            new_trade = self._create_new_trade(best_bid, "SHORT")
-            self.short_positions.append(new_trade)
-            print(f"Opening new SHORT position ({len(self.short_positions)}/{self.max_short_positions}).")
-            return 2 + (2 * sell_exchange_id) # Return SELL action
+            best_bid = all_prices[sell_exchange_id]
 
+            new_trade = self._create_new_trade(best_bid, "SHORT", sell_exchange_id)
+            self.short_positions.append(new_trade)
+            return 2 + (2 * sell_exchange_id)
         # HOLD
         return 0
 
