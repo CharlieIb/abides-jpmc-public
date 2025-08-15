@@ -404,7 +404,7 @@ if __name__ == "__main__":
         # Save weights at the end of the episode if enabled
         if (save_enabled and args.mode.startswith('train') and (episode + 1) % save_freq_episodes == 0 and
                 (not isinstance(agent, SingleExchangeTripleBarrierAgent) or not isinstance(agent, MultiExchangeTripleBarrierAgent))):
-            file_path = os.path.join(save_dir, f"{active_agent_name}_episode_{episode+1}.pth")
+            file_path = os.path.join(save_dir, f"{active_agent_name}_{args.mode}_episode_{episode+1}.pth")
             agent.save_weights(file_path)
 
 
