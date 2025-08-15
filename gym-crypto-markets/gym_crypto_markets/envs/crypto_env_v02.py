@@ -388,6 +388,28 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             action_index = action - 1
             exchange_id = action_index // 2
             is_buy = (action_index % 2) == 0
+            total_holdings = self.gym_agent.get_holdings("ABM")
+            if not is_buy:
+                if not is_buy:
+                    # If current holdings are positive, a SELL order is reducing risk, so we allow it.
+                    if total_holdings <= 0:
+                        # 1. Get current portfolio state
+                        current_price = self._get_latest_bid_price(exchange_id)  # Price for selling
+                        portfolio_value = self.gym_agent.cash + (total_holdings * current_price)
+
+                        # Set to 150%
+                        leverage_limit = 1.5
+                        max_allowed_short_value = portfolio_value * leverage_limit
+
+                        # 3. Calculate the value of the proposed new short position
+                        proposed_new_holdings = total_holdings - trade_size
+                        proposed_short_value = abs(proposed_new_holdings * current_price)
+
+                        # 4. Check if the proposed trade exceeds the limit
+                        if proposed_short_value > max_allowed_short_value:
+                            print(
+                                f"WARN: Agent SELL SHORT order rejected due to leverage limit. Proposed Value: {proposed_short_value:.0f} > Limit: {max_allowed_short_value:.0f}")
+                            return []
             if is_buy:
                 current_ask_price = self._get_latest_ask_price(exchange_id)
                 estimated_cost = current_ask_price * trade_size
@@ -416,7 +438,10 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
                 from_exchange = 1
                 to_exchange = 0
                 holdings_on_source = self.gym_agent.holdings_by_exchange.get(from_exchange, {}).get("ABM", 0)
-                self.realised_pnl -= self.gym_agent.withdrawal_fees.get(from_exchange).get("ABM", self.gym_agent.withdrawal_fees.get(from_exchange).get("default", 0))
+                self.realised_pnl -= self.gym_agent.withdrawal_fees.get(from_exchange).get("ABM",
+                                                                                           self.gym_agent.withdrawal_fees.get(
+                                                                                               from_exchange).get(
+                                                                                               "default", 0))
 
                 if holdings_on_source < trade_size:
                     print(

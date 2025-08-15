@@ -124,7 +124,7 @@ if __name__ == "__main__":
     summary_csv_file = None
 
     if log_enabled:
-        summary_log_path = os.path.join(log_dir, f"{active_agent_name}_{args.mode}_episode_summary.csv")
+        summary_log_path = os.path.join(log_dir, f"{active_agent_name}_{args.mode}_episode_summary_{timestamp_str}.csv")
         print(f"Episode summary logging enabled. Saving to: {summary_log_path}")
 
         summary_csv_file = open(summary_log_path, 'w', newline='')
