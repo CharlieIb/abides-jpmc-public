@@ -70,6 +70,13 @@ class DQNAgent():
 
         self.use_confidence_sizing = use_confidence_sizing
 
+        self.avg_long_entry_price = 0.0
+        self.avg_short_entry_price = 0.0
+
+        self.profit_exits = 0
+        self.loss_exits = 0
+        self.total_trades_closed = 0
+
         print(f"Agent initialized for DQN. Obs space: {observation_space.shape}, Action space: {action_space.n}")
 
     def reset_agent_state(self):
@@ -77,7 +84,12 @@ class DQNAgent():
         Resets the agent's state for a new episode.
         This is primarily used to reset the exploration rate.
         """
-        pass
+        self.avg_long_entry_price = 0.0
+        self.avg_short_entry_price = 0.0
+        self.profit_exits = 0
+        self.loss_exits = 0
+        self.total_trades_closed = 0
+
 
 
     def choose_action(self, state, info=None):
@@ -140,6 +152,67 @@ class DQNAgent():
 
 
     def update_policy(self, old_state, action_or_tuple, reward, new_state, done):
+
+        # Get holdings from the state vectors (assuming holdings are at index 5)
+        old_holdings = old_state[5][0]
+        new_holdings = new_state[5][0]
+
+        # Using VWAP as price estimate
+        current_price = old_state[0][0]
+        exit_price = new_state[0][0]
+
+        # LONG position changes
+        if old_holdings >= 0 and new_holdings > 0:
+            trade_size = new_holdings - old_holdings
+            # Opening a new long position
+            if old_holdings == 0:
+                self.avg_long_entry_price = current_price
+            # Scaling into an existing long position
+            elif new_holdings > old_holdings:
+                new_avg_price = ((old_holdings * self.avg_long_entry_price) + (
+                            trade_size * current_price)) / new_holdings
+                self.avg_long_entry_price = new_avg_price
+
+        # SHORT Position changes
+        elif old_holdings <= 0 and new_holdings < 0:
+            trade_size = abs(new_holdings - old_holdings)
+            # Opening a new short position
+            if old_holdings == 0:
+                self.avg_short_entry_price = current_price
+            # Scaling into an existing short position
+            elif new_holdings < old_holdings:
+                new_avg_price = ((abs(old_holdings) * self.avg_short_entry_price) + (trade_size * current_price)) / abs(
+                    new_holdings)
+                self.avg_short_entry_price = new_avg_price
+
+        # EXITS
+        # Selling part of a LONG position
+        if old_holdings > 0 and new_holdings < old_holdings:
+            sold_size = old_holdings - new_holdings
+            pnl = (exit_price - self.avg_long_entry_price) * sold_size
+            if pnl > 0:
+                self.profit_exits += 1
+            else:
+                self.loss_exits += 1
+            self.total_trades_closed += 1
+            # Posiiton fully closed, reset entry price
+            if new_holdings == 0:
+                self.avg_long_entry_price = 0.0
+                print(f"DEBUG: Position closed. P&L: {pnl:.2f}. Wins: {self.profit_exits}, Losses: {self.loss_exits}")
+
+        # Buying back part or all of a short position
+        if old_holdings < 0 and new_holdings > old_holdings:
+            covered_size = abs(old_holdings - new_holdings)
+            pnl = (self.avg_short_entry_price - exit_price) * covered_size
+            if pnl > 0:
+                self.profit_exits += 1
+            else:
+                self.loss_exits += 1
+            self.total_trades_closed += 1
+            if new_holdings == 0:
+                # position fully closed reset entry price
+                self.avg_short_entry_price = 0.0
+                print(f"DEBUG: Position closed. P&L: {pnl:.2f}. Wins: {self.profit_exits}, Losses: {self.loss_exits}")
 
         if self.use_confidence_sizing:
             action, _ = action_or_tuple
