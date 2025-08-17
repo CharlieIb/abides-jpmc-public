@@ -719,11 +719,18 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             for d in mkt_data if "exchange_id" in d
         }
 
+        # print("\n--- M2M DEBUG START ---")
+        # print(f"Initial Cash: {cash:,.2f}")
+        # print(f"Holdings by Exchange: {holdings_by_exchange}")
+        # print(f"Price Map Used for Valuation: {price_map}")
+
         # Iterate through each asset holding on each exchange
         for exchange_id, holdings in holdings_by_exchange.items():
             for symbol, shares in holdings.items():
                 if shares == 0:
                     continue
+
+                # print(f"\n[Holding] Processing {shares} shares of {symbol} currently on Exchange {exchange_id}")
 
                 # Find the best possible net price for this specific asset
                 best_net_price = 0
@@ -734,6 +741,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
                     market_price = price_map.get(potential_market_id, 0)
 
                     if market_price == 0:
+                        # print(f"  [Liquidation Check] -> Skipping Exch {potential_market_id} (no price available).")
                         continue
 
                     # Calculate the cost to move the asset to this market
@@ -743,12 +751,18 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
                         transfer_cost = fee_structure.get(symbol, fee_structure.get('default', 0))
 
                     net_price = market_price - transfer_cost
-
+                    # print(f"  [Liquidation Check] -> Sell on Exch {potential_market_id}? | Market Price: {market_price:,.2f} | Transfer Cost: {transfer_cost:,.2f} | Net Price: {net_price:,.2f}")
                     if net_price > best_net_price:
                         best_net_price = net_price
 
                 # Add the asset's true value to the total
                 total_value += shares * best_net_price
+        #         print(f"[Result] Best net liquidation price for this holding: {best_net_price:,.2f}")
+        #         print(f"[Result] Value added to total: {shares * best_net_price:,.2f}")
+        #         # ---
+        #
+        # # --- DEBUG: Print final calculated value ---
+        # print(f"--- M2M DEBUG END --- Final Total Value: {total_value:,.2f}")
         return total_value
 
     @raw_state_pre_process_multi
@@ -769,7 +783,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
 
             # Normalize reward
             if self.previous_marked_to_market > 0:
-                reward = reward / self.previous_marked_to_market
+                reward = reward / self.starting_cash
 
             self.previous_marked_to_market = marked_to_market
 
@@ -792,7 +806,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             return 0
         elif self.reward_mode == "sparse":
             marked_to_market = self._calculate_true_m2m(raw_state)
-            pnl = marked_to_market - self.starting_cash
+            pnl = marked_to_market - self.previous_marked_to_market
             if pnl < 0:
                 scaled_loss = pnl  / self.starting_cash
                 reward = - (scaled_loss ** 2)
