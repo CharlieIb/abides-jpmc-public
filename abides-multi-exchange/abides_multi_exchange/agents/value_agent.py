@@ -20,7 +20,7 @@ class ValueAgent(TradingAgent):
         name: Optional[str] = None,
         type: Optional[str] = None,
         random_state: Optional[np.random.RandomState] = None,
-        symbol: str = "IBM",
+        symbol: str = "ABM",
         starting_cash: int = 100_000,
         sigma_n: float = 10_000,
         r_bar: int = 100_000,

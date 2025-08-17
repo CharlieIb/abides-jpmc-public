@@ -756,6 +756,13 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         """
         --- Uses the new robust M2M calculation ---
         """
+        processed_state = raw_state[0]
+        internal_data = processed_state["internal_data"]
+        cash = internal_data.get("cash", 0)
+
+        if cash < 0:
+            # Return a large, constant penalty for failure
+            return -1.0
         if self.reward_mode == "dense":
             marked_to_market = self._calculate_true_m2m(raw_state)
             reward = marked_to_market - self.previous_marked_to_market
@@ -773,6 +780,14 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
     @raw_state_pre_process_multi
     def raw_state_to_update_reward(self, raw_state: List[Any]) -> float:
         """Calculates the sparse reward (total episode gain/loss) at the end of an episode."""
+        processed_state = raw_state[0]
+        internal_data = processed_state["internal_data"]
+        cash = internal_data.get("cash", 0)
+
+        if cash < 0:
+            # Return a large, constant penalty for failure
+            return -1.0
+
         if self.reward_mode == "dense":
             return 0
         elif self.reward_mode == "sparse":
@@ -787,6 +802,15 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
     @raw_state_pre_process_multi
     def raw_state_to_done(self, raw_state: List[Any]) -> bool:
         """Determines if the episode is done by checking the agent's portfolio value."""
+
+        processed_state = raw_state[0]
+        internal_data = processed_state["internal_data"]
+        cash = internal_data.get("cash", 0)
+
+        if cash < 0:
+            print("INFO: Episode ended due to negative cash (bankruptcy).")
+            return True
+
         marked_to_market = self._calculate_true_m2m(raw_state)
         return marked_to_market <= self.down_done_condition
 

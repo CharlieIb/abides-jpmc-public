@@ -154,7 +154,7 @@ def build_config(params: Dict):
     oracle = DataOracle(MKT_OPEN, MKT_CLOSE, symbols)
 
     r_bar = int(daily_mean_price)
-    sigma_n = daily_volatility * 0.05
+    sigma_n = daily_volatility
     kappa = value_params['kappa']
     lambda_a = value_params['lambda_a']
 

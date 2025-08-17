@@ -166,10 +166,10 @@ class ArbitrageAgent(TradingAgent):
                     f"Net profit: {net_profit_per_share}. Size: {dynamic_order_size}"
                 )
 
-                # print(
-                #     f"EXECUTION ({self.name}): Placing BUY order on Ex {buy_exchange_id} for {dynamic_order_size} @ {best_ask_price}")
-                # print(
-                #     f"EXECUTION ({self.name}): Placing SELL order on Ex {sell_exchange_id} for {dynamic_order_size} @ {best_bid_price}")
+                print(
+                    f"EXECUTION ({self.name}): Placing BUY order on Ex {buy_exchange_id} for {dynamic_order_size} @ {best_ask_price}")
+                print(
+                    f"EXECUTION ({self.name}): Placing SELL order on Ex {sell_exchange_id} for {dynamic_order_size} @ {best_bid_price}")
 
                 # Execute the trades.
                 # Place the buy order on the cheap exchange.

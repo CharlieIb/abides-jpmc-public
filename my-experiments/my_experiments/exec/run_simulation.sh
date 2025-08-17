@@ -4,6 +4,7 @@
 #SBATCH --error=slurm-%j.err    # Ensure you capture stderr
 #SBATCH --ntasks=4
 #SBATCH --time=7-00:00:00
+#SBATCH --mem=40GB
 # Add other SBATCH directives you use (e.g., --nodes, --ntasks-per-node, --time, --partition)
 
 module purge; module load bluebear
@@ -42,7 +43,7 @@ echo "Starting the gym simulation..."
 
 # --- CRUCIAL CHANGE HERE: Use the actual path to your ABIDES environment's Python ---
 # This is the line that runs your main simulation script.
-"${YOUR_ACTUAL_ABIDES_ENV_PYTHON_PATH}" -u run_gym_simulation.py base_config_bear.yaml --mode train-abides-se --agent SETripleBarrier
+"${YOUR_ACTUAL_ABIDES_ENV_PYTHON_PATH}" -u run_gym_simulation.py base_config_bear.yaml --mode train-abides --agent DQNAgent
 
 if [ $? -eq 0 ]; then
   echo "Gym simulation completed successfully."

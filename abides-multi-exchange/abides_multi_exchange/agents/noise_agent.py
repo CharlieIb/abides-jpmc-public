@@ -129,7 +129,7 @@ class NoiseAgent(TradingAgent):
         # print(f"{self.name}: Preparing to order.")
         buy_indicator = self.random_state.randint(0, 1 + 1)
 
-        bid, bid_vol, ask, ask_vol = self.get_known_bid_ask(self.target_exchange, self.symbol)
+        bid, _, ask, _ = self.get_known_bid_ask(self.target_exchange, self.symbol)
 
         if self.order_size_model is not None:
             self.size = self.order_size_model.sample(random_state=self.random_state)

@@ -296,6 +296,17 @@ if __name__ == "__main__":
                 action_output = agent.choose_action(state, info)
                 new_state, reward, done, info = env.step(action_output)
 
+                try:
+                    new_state, reward, done, info = env.step(action_output)
+
+                # incase of assertion errors, end the episode gracefully and restart
+                except AssertionError as e:
+                    print(f"\nERROR: Caught invalid state from environment: {e}. Terminating episode.")
+                    new_state = state  # Keep the last valid state
+                    reward = -1.0  # Apply a large penalty for failure
+                    done = True  # End the episode
+                    info = {}
+
                 if args.mode.startswith('train'):
                     if active_agent_name == "PPOAgent":
                         agent.update_policy(state, action_output, reward, new_state, done)
