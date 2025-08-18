@@ -54,7 +54,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
 
 
         if isinstance(background_config, str):
-            # If a string is passed, import it as a module name (the old way).
+            # If a string is passed, import it as a module name -- the old way
             assert background_config in [
                 "cdormsc01", "cdormsc02"
             ], "Select one of cdormsc01, cdormsc02 as config"
@@ -64,7 +64,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             base_config_args.update(background_config_extra_kvargs)
 
         elif isinstance(background_config, dict):
-            # If a dictionary is passed, use it directly (the new, flexible way).
+            # If a dictionary is passed, use it directly -- the new, flexible way
             print("INFO: Using pre-built dictionary for background_config.")
             # When running from YAML, the dictionary is the set of base arguments.
             base_config_args = background_config
@@ -221,7 +221,6 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             dtype=np.float32,
         )
 
-        # Apply .reshape() to create column vectors, as per the original convention.
         self.state_highs: np.ndarray = state_highs_flat.reshape(self.num_state_features, 1)
         self.state_lows: np.ndarray = state_lows_flat.reshape(self.num_state_features, 1)
 
@@ -241,8 +240,6 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         Overrides the parent reset method to ensure all custom state variables
         are properly re-initialized for each new episode.
         """
-        # First, call the parent's reset method to handle all the core
-        # ABIDES simulation and kernel resetting. This returns the initial state.
         initial_state = super().reset(override_bg_params=override_bg_params)
 
         # Now, reset the custom attributes for this child environment.
@@ -388,7 +385,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             total_holdings = self.gym_agent.get_holdings("ABM")
             if not is_buy:
                 if not is_buy:
-                    # If current holdings are positive, a SELL order is reducing risk, so we allow it.
+                    # If current holdings are positive, a SELL order is reducing risk, so allow it.
                     if total_holdings <= 0:
                         # Get current portfolio state
                         current_price = self._get_latest_bid_price(exchange_id)  # Price for selling
@@ -483,13 +480,13 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         # The action space is: [0:HOLD, 1:BUY_E0, 2:SELL_E0, 3:BUY_E1, 4:SELL_E1, 5:TFR_1->0, 6:TFR_0->1]
         mask = np.ones(self.num_actions, dtype=np.int8)
 
-        # Rule 1: Check cash for BUY actions
-        # Actions 1 and 3 and BUY on exchanges 0 and 1 respectively
+        # Check cash for BUY actions
+        # Actions 1/3: BUY on exchanges 0 and 1 respectively
         if self.gym_agent.cash <= 0:
             mask[1] = 0 # Disable BUY on Exchange 0
             mask[3] = 0 # Disable BUY on Exchange 1
         if self.num_exchanges == 2:
-            # Rule 2: Check holdings for transfer actions
+            # Check holdings for transfer actions
             # action 5: TFR from 1 to 0
             holdings_on_exch1 = self.gym_agent.holdings_by_exchange.get(1, {}).get("ABM", 0)
             if holdings_on_exch1 < self.order_fixed_size:
@@ -758,7 +755,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         #         print(f"[Result] Value added to total: {shares * best_net_price:,.2f}")
         #         # ---
         #
-        # # --- DEBUG: Print final calculated value ---
+        # #  DEBUG: Print final calculated value
         # print(f"--- M2M DEBUG END --- Final Total Value: {total_value:,.2f}")
         return total_value
 

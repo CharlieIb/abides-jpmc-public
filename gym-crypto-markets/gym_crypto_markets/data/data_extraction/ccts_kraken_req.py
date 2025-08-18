@@ -8,7 +8,7 @@ import time
 from typing import List, Optional
 
 
-# --- Function to fetch raw Kraken trade data using CCXT (from previous answer, unchanged) ---
+#  Function to fetch raw Kraken trade data using CCXT
 def get_kraken_trades_for_day_ccxt(symbol: str, date_str: str) -> pd.DataFrame:
     """
     Fetches all trade data for a specific day from Kraken using CCXT.
