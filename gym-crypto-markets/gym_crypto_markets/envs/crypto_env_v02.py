@@ -154,9 +154,6 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         )
 
         # Action Space
-        # The action space is now (2 * num_exchanges) + 1 to account for
-        # TFR between each pair, BUY/SELL on each exchange, plus a single HOLD action.
-        # TFR = E(E-1), BUY/SELL = 2E and HOLD = 1, therefore together = E^2 + E + 1
         self.num_actions: int = (self.num_exchanges)**2 + self.num_exchanges + 1
         self.action_space: gym.Space = gym.spaces.Discrete(self.num_actions)
 
@@ -164,7 +161,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         # The state now includes features for each exchange, plus global features.
         # Features per exchange: [Price deviation, Vol share, TVI]
         # Global features: [Global VWAP, Global TVI, Global Market Vol, Global volatility ]
-        # Agent features: [Total Holdings, Cash, PnL, Total Returns(1m, 2m, 3m, 4m]
+        # Agent features: [Total Holdings, Cash, PnL, Total Returns(1m, 2m, 3m, 4m, 5m]
         self.features_per_exchange = 3  # Imbalance, Spread, DirectionFeature
         self.num_global_features = 7  # Global + Agent features
         self.num_temporal_features = self.state_history_length - 1  # Padded Returns
