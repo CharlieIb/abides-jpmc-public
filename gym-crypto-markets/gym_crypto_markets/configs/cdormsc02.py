@@ -113,7 +113,7 @@ def build_config(params: Dict):
         else:
             return pomegranate_model_json
 
-    # --- Date and Time ---
+    # Date and Time
     DATE = int(pd.to_datetime(date_str).to_datetime64())
     MKT_OPEN = DATE + str_to_ns(f"{mkt_open_time}")
     MKT_CLOSE = DATE +str_to_ns(f"{end_time}")
@@ -123,7 +123,7 @@ def build_config(params: Dict):
     NOISE_MKT_CLOSE = DATE + str_to_ns("23:00:00")
 
 
-    # ---- MM PARAMS -------
+    # MM PARAMS
     MM_PARAMS = [
         (mm_params['window_size'], mm_params['pov'], mm_params['num_ticks'], mm_params['wake_up_freq'], mm_params['min_order_size']),
         (mm_params['window_size'], mm_params['pov'], mm_params['num_ticks'], mm_params['wake_up_freq'], mm_params['min_order_size']),
@@ -174,11 +174,11 @@ def build_config(params: Dict):
     # Agent configuration
     agent_count, agents, agent_types = 0, [], []
 
-    #
+
     exchange_agents = [
         ExchangeAgent(
             id=j,
-            name=f"EXCHANGE_AGENT_{j}",  # Use f-string for clarity
+            name=f"EXCHANGE_AGENT_{j}",
             type="ExchangeAgent",
             mkt_open=MKT_OPEN,
             mkt_close=MKT_CLOSE,
@@ -205,8 +205,6 @@ def build_config(params: Dict):
     if params.get('withdrawal_fees_enabled', False):
         for ex_id in exchange_ids:
             fee = r_bar * 15
-            # IMPORTANT: adjust this to your simulation parameter, then adjust respective agents
-            # E.G arbitrage agent's strategy will likely highly depend on this.
             withdrawal_fees[ex_id] = {'default': fee, ticker: fee}
 
     # Value Agents
