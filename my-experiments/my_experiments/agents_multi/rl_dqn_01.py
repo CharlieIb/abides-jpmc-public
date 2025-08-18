@@ -13,11 +13,10 @@ import torch.nn.functional as F
 # Import to register environments
 import abides_gym
 
-# --- Neural Network for DQN ---
+# Neural Network for DQN
 class DQN(nn.Module):
     def __init__(self, input_dim, output_dim):
         super(DQN, self).__init__()
-        # Using the architecture from the paper which was [50, 20]
         self.fc1 = nn.Linear(input_dim, 50)
         self.fc2 = nn.Linear(50, 20)
         self.fc3 = nn.Linear(20, output_dim)
@@ -30,7 +29,6 @@ class DQN(nn.Module):
         return self.fc3(x)
 
 
-# --- RL_Agent Class (DQN) ---
 class DQNAgent():
     def __init__(self, observation_space, action_space,
                  learning_rate = 1e-3, discount_factor = 1.0,
@@ -39,7 +37,7 @@ class DQNAgent():
                  use_confidence_sizing: bool = False
                  ):
         self.observation_space_shape = observation_space.shape
-        self.action_space_n = action_space.n # The number of discrete actions (BUY, HOLD, SELL)
+        self.action_space_n = action_space.n
 
         # Policy Network: The network that learns and is actively trained
         self.policy_net = DQN (int(np.prod(self.observation_space_shape)), self.action_space_n)
@@ -195,7 +193,7 @@ class DQNAgent():
             else:
                 self.loss_exits += 1
             self.total_trades_closed += 1
-            # Posiiton fully closed, reset entry price
+            # Position fully closed, reset entry price
             if new_holdings == 0:
                 self.avg_long_entry_price = 0.0
                 print(f"DEBUG: Position closed. P&L: {pnl:.2f}. Wins: {self.profit_exits}, Losses: {self.loss_exits}")

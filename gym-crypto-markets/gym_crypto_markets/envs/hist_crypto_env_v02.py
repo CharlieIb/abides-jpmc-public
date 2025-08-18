@@ -42,7 +42,7 @@ class HistoricalTradingEnv_v02(gym.Env):
         self.transfer_delay_beta: float = 14.5
 
 
-        # --- 2. Define Action and Observation Spaces (to match ABIDES env) ---
+        # Define Action and Observation Spaces (to match ABIDES env)
         self.num_actions = self.num_exchanges ** 2 + self.num_exchanges + 1
         self.action_space = gym.spaces.Discrete(self.num_actions)
 
@@ -60,7 +60,7 @@ class HistoricalTradingEnv_v02(gym.Env):
         self.dfs = []
         self.max_steps = 0
 
-        # --- Initialize Internal State ---
+        # Initialize Internal State
         self.current_step = 0
         self.cash = self.starting_cash
         self.total_holdings = 0
@@ -74,7 +74,6 @@ class HistoricalTradingEnv_v02(gym.Env):
     def _load_data(self, data_paths: List[str]):
         """
         Loads and aligns historical data for multiple exchanges.
-        ASSUMPTION: Each CSV file contains pre-aggregated data (e.g., 1-minute bars)
         with at least the following columns: 'timestamp', 'price', 'volume', 'vwap', 'buy_volume'.
         """
 
@@ -108,14 +107,14 @@ class HistoricalTradingEnv_v02(gym.Env):
 
     def reset(self, override_bg_params: dict = None):
         """Resets the environment for a new episode."""
-        # 1. Start with a fresh copy of the initial background parameters
+        # Start with a fresh copy of the initial background parameters
         current_bg_params = self.bg_params.copy()
 
-        # 2. Update with any overrides for this specific episode (e.g., new data_paths)
+        # Update with any overrides for this specific episode (e.g., new data_paths)
         if override_bg_params:
             current_bg_params.update(override_bg_params)
 
-        # 3. Use the updated parameters to configure the episode
+        # Use the updated parameters to configure the episode
         data_paths = current_bg_params.get('data_paths')
         if data_paths:
             self._load_data(data_paths)
@@ -250,7 +249,7 @@ class HistoricalTradingEnv_v02(gym.Env):
             i: {"ABM": holdings} for i, holdings in enumerate(self.holdings_by_exchange)
         }
 
-        # 2. Calculate the current portfolio value using the sophisticated method.
+        # Calculate the current portfolio value using the sophisticated method.
         current_portfolio_value = self._calculate_true_m2m(
             cash=self.cash,
             holdings_by_exchange=mock_holdings_by_exchange,
@@ -321,13 +320,13 @@ class HistoricalTradingEnv_v02(gym.Env):
             tvi = 0.5  # Placeholder
             exchange_features.extend([price_dev, vol_share, tvi])
 
-        # --- Temporal Features (from global VWAP history) ---
+        # Temporal Features (from global VWAP history)
         padded_returns = np.zeros(self.num_temporal_features)
         if len(self.vwap_history) > 1:
             returns = np.diff(np.array(list(self.vwap_history)))
             padded_returns[-len(returns):] = returns
 
-        # --- Assemble final state vector (MUST MATCH ABIDES ENV ORDER) ---
+        # Assemble final state vector
         final_state_flat = np.array(
             [global_vwap, total_market_volume, global_tvi, global_volatility, self.cash, self.total_holdings, pnl] +
             exchange_features +

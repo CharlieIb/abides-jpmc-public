@@ -118,7 +118,6 @@ class ArbitrageAgent(TradingAgent):
         """The core logic to find and execute profitable arbitrage opportunities."""
 
         # Consider every possible pair of exchanges for an arbitrage trade.
-        # permutations('ABCD', 2) --> AB AC AD BA BC BD CA CB CD DA DB DC
         for buy_exchange_id, sell_exchange_id in permutations(self.exchange_ids, 2):
 
             buy_market = self.latest_spreads.get(buy_exchange_id)
