@@ -301,7 +301,7 @@ class HistoricalTradingEnv_v02(gym.Env):
         else:
             global_volatility = 0
 
-        # Placeholder for TVI as it requires buy/sell volume breakdown
+        # TVI as it requires buy/sell volume breakdown
         global_tvi = 0.5
 
         # Agent-Specific Features
