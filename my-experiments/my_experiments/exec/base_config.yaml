@@ -8,7 +8,7 @@ background_config_params:
   order_size_model_type: 'simple'  # Is the phenomenon you are researching defined by the noise ('realistic') or not('simple').
                                       # NOTE: realism will require an increase in noise agents, this will be computationally taxing
 
-  # --- Log orders: Individual agent logs ---
+  # Log orders: Individual agent logs
   # These must be None or True (False will yield True)
   log_order_params:
     log_orders_value: True
@@ -18,7 +18,7 @@ background_config_params:
     log_orders_noise: None
     log_orders: False
 
-  # --- Exchange Agent Parameters ---
+  # Exchange Agent Parameters
   exchange_params:
     num_exchange_agents: 2
     book_logging: True
@@ -26,7 +26,7 @@ background_config_params:
     stream_history_length: 500
     exchange_log_orders: True # overall market logs and file creation
 
-  # --- Data Oracle Parameters ---
+  # Data Oracle Parameters
   data_file_path: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2020-09-26/BTCUSDT-trades-2020-09-26-1s.csv"
   data_path_template: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/{}/BTCUSDT-trades-{}-1s.csv"
   historical_dates:
@@ -56,13 +56,13 @@ background_config_params:
     binance: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/{}/BTCUSDT-trades-{}-1m-hist.csv"
     kraken: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/{}/kraken_btcusdt_trades_{}.csv"
 
-  # --- Withdrawal Fee Parameters ---
+  # Withdrawal Fee Parameters
   withdrawal_fees_enabled: True
   withdrawal_fee_multiplier: 15
   # This is a multiplier of 1 "share", in this simulation we are using notional shares such that
   # the withdrawal fee is 15x the average price
 
-  # --- Population Parameters ---
+  # Population Parameters
   agent_populations:
     num_value_agents: 204
     num_momentum_agents: 34
@@ -70,12 +70,12 @@ background_config_params:
     # num_mm_agents = defined in cdormsc02
     num_noise_agents: 10000
 
-  # --- Value Agent Parameters ---
+  # Value Agent Parameters
   value_params:
     kappa: 1.67e-15 # appraisal of mean reversion
     lambda_a: 5.7e-12  # arrival rate
 
-  # --- Momentum Agent Parameters ---
+  # Momentum Agent Parameters
   momentum_params:
     min_size: 1
     max_size: 10
@@ -84,14 +84,14 @@ background_config_params:
     subscribe: False   # Explicitly set to polling mode
 
 
-  # --- Arbitrage Agents
+  # Arbitrage Agents
   arbitrage_params:
     wake_up_freq: "60s"
     min_profit_margin:  1
     pov: 0.25
     max_inventory: 10000000
 
-  # --- Market Maker Agents ---
+  # Market Maker Agents
   # each elem of mm_params is tuple (window_size, pov, num_ticks, wake_up_freq, min_order_size)
   mm_params:
     wake_up_freq: "60s"
@@ -106,7 +106,7 @@ background_config_params:
     backstop_quantity: 0
     cancel_limit_delay: 50
 
-    # --- General settings ---
+    # General settings
   default_computation_delay: 50
 
 
