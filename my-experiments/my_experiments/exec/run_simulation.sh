@@ -43,7 +43,7 @@ echo "Starting the gym simulation..."
 
 # --- CRUCIAL CHANGE HERE: Use the actual path to your ABIDES environment's Python ---
 # This is the line that runs your main simulation script.
-"${YOUR_ACTUAL_ABIDES_ENV_PYTHON_PATH}" -u run_gym_simulation.py base_config_bear.yaml --mode train-abides --agent DQNAgent
+"${YOUR_ACTUAL_ABIDES_ENV_PYTHON_PATH}" -u run_gym_simulation.py base_config_bear.yaml --mode train-abides-se --agent DQNAgent
 
 if [ $? -eq 0 ]; then
   echo "Gym simulation completed successfully."

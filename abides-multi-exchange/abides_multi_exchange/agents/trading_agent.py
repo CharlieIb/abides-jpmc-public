@@ -978,25 +978,24 @@ class TradingAgent(FinancialAgent):
         # After execution, log holdings.
         self.logEvent("HOLDINGS_UPDATED", self.fmt_holdings(self.holdings_by_exchange))
 
-    def transfer_asset(self, symbol, from_exchange, to_exchange, amount, withdrawal_fee):
-        """
-        Simulates withdrawing an asset from one exchange and depositing to another.
-        """
-        # TODO: Need to add logEvents and logger codes to this method
-        # Check if we have enough to transfer
-        if self.holdings_by_exchange[from_exchange].get(symbol, 0) >= amount:
-
-            # Debit from the source exchange
-            self.holdings_by_exchange[from_exchange][symbol] -= amount
-
-            # Apply the fixed withdrawal fee
-            amount_to_receive = amount - withdrawal_fee
-
-            # Credit to the destination exchange
-            # TODO: This could be delayed to simulate blockchain confirmation time
-            if amount_to_receive > 0:
-                self.holdings_by_exchange[to_exchange][symbol] = \
-                    self.holdings_by_exchange[to_exchange].get(symbol, 0) + amount_to_receive
+    # def transfer_asset(self, symbol, from_exchange, to_exchange, amount, withdrawal_fee):
+    #     """
+    #     Simulates withdrawing an asset from one exchange and depositing to another.
+    #     """
+    #     # TODO: Need to add logEvents and logger codes to this method
+    #     # Check if we have enough to transfer
+    #     if self.holdings_by_exchange[from_exchange].get(symbol, 0) >= amount:
+    #
+    #         # Debit from the source exchange
+    #         self.holdings_by_exchange[from_exchange][symbol] -= amount
+    #
+    #         # Apply the fixed withdrawal fee
+    #         amount_to_receive = amount - withdrawal_fee
+    #
+    #         # Credit to the destination exchange
+    #         if amount_to_receive > 0:
+    #             self.holdings_by_exchange[to_exchange][symbol] = \
+    #                 self.holdings_by_exchange[to_exchange].get(symbol, 0) + amount_to_receive
 
     def _get_random_transfer_delay(self) -> NanosecondTime:
         """

@@ -153,18 +153,18 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             first_interval=self.first_interval,
         )
 
-        # --- Action Space ---
+        # Action Space
         # The action space is now (2 * num_exchanges) + 1 to account for
         # TFR between each pair, BUY/SELL on each exchange, plus a single HOLD action.
         # TFR = E(E-1), BUY/SELL = 2E and HOLD = 1, therefore together = E^2 + E + 1
         self.num_actions: int = (self.num_exchanges)**2 + self.num_exchanges + 1
         self.action_space: gym.Space = gym.spaces.Discrete(self.num_actions)
 
-        # --- Observation Space ---
+        # Observation Space
         # The state now includes features for each exchange, plus global features.
         # Features per exchange: [Price deviation, Vol share, TVI]
         # Global features: [Global VWAP, Global TVI, Global Market Vol, Global volatility ]
-        # Agent features: [Total Holdings, Cash, PnL, Total Returns(1s, 5s, 1m, 5m]
+        # Agent features: [Total Holdings, Cash, PnL, Total Returns(1m, 2m, 3m, 4m]
         self.features_per_exchange = 3  # Imbalance, Spread, DirectionFeature
         self.num_global_features = 7  # Global + Agent features
         self.num_temporal_features = self.state_history_length - 1  # Padded Returns
@@ -382,9 +382,9 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         else:
             trade_size = self.order_fixed_size
 
-        # --- Action 1-4: BUY/SELL on exchanges
+        # Action 1-4: BUY/SELL on exchanges
         if 1 <= action <= 4:
-            # Deconstruct the action into an exchange and a direction
+
             action_index = action - 1
             exchange_id = action_index // 2
             is_buy = (action_index % 2) == 0
@@ -393,7 +393,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
                 if not is_buy:
                     # If current holdings are positive, a SELL order is reducing risk, so we allow it.
                     if total_holdings <= 0:
-                        # 1. Get current portfolio state
+                        # Get current portfolio state
                         current_price = self._get_latest_bid_price(exchange_id)  # Price for selling
                         portfolio_value = self.gym_agent.cash + (total_holdings * current_price)
 
@@ -401,11 +401,11 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
                         leverage_limit = 1.5
                         max_allowed_short_value = portfolio_value * leverage_limit
 
-                        # 3. Calculate the value of the proposed new short position
+                        # Calculate the value of the proposed new short position
                         proposed_new_holdings = total_holdings - trade_size
                         proposed_short_value = abs(proposed_new_holdings * current_price)
 
-                        # 4. Check if the proposed trade exceeds the limit
+                        # Check if the proposed trade exceeds the limit
                         if proposed_short_value > max_allowed_short_value:
                             print(
                                 f"WARN: Agent SELL SHORT order rejected due to leverage limit. Proposed Value: {proposed_short_value:.0f} > Limit: {max_allowed_short_value:.0f}")
@@ -432,7 +432,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
                 "size": trade_size,
                 "exchange_id": exchange_id
             }]
-        # --- Action 5: TRANSFER_FROM_0_TO_1 ---
+        # Action 5: TRANSFER_FROM_0_TO_1
         elif action in [5, 6] and self.num_exchanges > 1:
             if action == 5:
                 from_exchange = 1
@@ -454,7 +454,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
                         "size": trade_size,
                     }]
 
-            # --- Action 6: TRANSFER_FROM_1_TO_0 ---
+            # Action 6: TRANSFER_FROM_1_TO_0
 
             elif action == 6:
                 from_exchange = 0
@@ -527,7 +527,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             current_interval_summary = self.calculate_aggregates(new_trades)
             self.aggregate_history.append(current_interval_summary)
 
-        # Calculate all features from the clean aggregate history ---
+        # Calculate all features from the clean aggregate history
         total_sum_price_vol = sum(interval['sum_price_vol'] for interval in self.aggregate_history)
         total_traded_volume = sum(interval['total_volume'] for interval in self.aggregate_history)
         total_buy_volume = sum(interval['buy_volume'] for interval in self.aggregate_history)
@@ -587,7 +587,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             pnl
         ]
 
-        # --- Step 4: Assemble the final state vector ---
+        # Step 4: Assemble the final state vector
         final_state_flat = np.array(
             global_and_agent_features + exchange_features + padded_returns.tolist(),
             dtype=np.float32
@@ -671,7 +671,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             'per_exchange_data': {}
         }
 
-        # --- Step 2: Loop through the raw trades to populate the summary ---
+        # Loop through the raw trades to populate the summary
         for trade in trade_history:
             price = trade.get('price')
             volume = trade.get('quantity')  # Correct key is 'quantity'
@@ -848,7 +848,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
 
 
 
-        # --- Global Agent Information ---
+        # Global Agent Information
         info = {
             "true_marked_to_market": true_m2m_value,
             "current_time": internal_data.get("current_time"),
@@ -866,7 +866,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             "action_mask": self._get_action_mask()
         }
 
-        # --- Per-Exchange Market Information ---
+        # Per-Exchange Market Information
         exchange_data = {}
         for latest_data in mkt_data:
             ex_id = latest_data.get("exchange_id")

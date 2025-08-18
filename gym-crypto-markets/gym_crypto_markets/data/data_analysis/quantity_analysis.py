@@ -6,14 +6,13 @@ import os
 import zipfile
 
 
-# --- Configuration ---
-# IMPORTANT: Replace 'path/to/your/historical_trades.csv' with the actual path to your data file.
-# This file should ideally contain a column with trade quantities.
+#  Configuration
+
 HISTORICAL_DATA_PATH = '/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/data_extraction/archive/BTCUSDT-trades-2025-06-11.csv'
 #HISTORICAL_DATA_PATH = '/rds/projects/a/aranboll-ai-research/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/data_extraction/BTCUSDT-trades-2025-05.zip'
 CSV_FILE_IN_ZIP = 'BTCUSDT-trades-2025-05.csv'
 QUANTITY_COLUMN_INDEX = 2
-QUANTITY_COLUMN_NAME = 'quantity' # Replace with the actual column name for trade quantities in your CSV
+QUANTITY_COLUMN_NAME = 'quantity'
 
 NOTIONAL_SCALING_FACTOR = 100000
 
@@ -22,15 +21,15 @@ VALUE_MIN_QTY = 100
 MOMENTUM_MIN_QTY = 10
 
 # Define categories/bins for trade quantities, adjusted for Bitcoin (fractional quantities).
-# These bins are designed to capture the typical range from very small to larger quantities.
-# You might need to fine-tune these further after an initial run with your actual data.
+# These bins are designed to capture the ranges from very small to larger quantities.
+
 QUANTITY_BINS = [0, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 5, 10, 50, np.inf]
 QUANTITY_LABELS = ['<0.00001(<1)', '0.00001-0.0001(1-10)', '0.0001-0.001(10-100)', '0.001-0.01(100-1000', '0.01-0.1(1000-10000)', '0.1-1(10000-100000)', '1-5', '5-10', '10-50', '50+']
 
 QUANTITY_BINS_SCALED = [q * NOTIONAL_SCALING_FACTOR for q in QUANTITY_BINS[:-1]] + [np.inf]
 
 
-# --- Data Loading ---
+# Data Loading
 def load_historical_data(file_path: str, csv_in_zip_name: str, column_index: int, column_name: str) -> pd.DataFrame:
     """
     Loads historical trade data from a CSV file.
@@ -72,7 +71,7 @@ def load_historical_data(file_path: str, csv_in_zip_name: str, column_index: int
         print(f"Error loading data: {e}")
         return pd.DataFrame()
 
-# --- Data Analysis ---
+# Data Analysis
 def analyze_quantities(df: pd.DataFrame, quantity_col: str):
     """
     Performs descriptive statistics and categorization on trade quantities.
@@ -124,7 +123,7 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
 
     print("\n--- Inferring Agent Trade Types and Analyzing Filtered Quantities ---")
 
-    # 1. Noise Agent Quantities: All trades up to NOISE_MAX_QTY
+    # Noise Agent Quantities
     noise_quantities = df[df['notional_quantity'] <= NOISE_MAX_QTY]['notional_quantity']
     print(f"\n--- Analysis for Inferred NOISE Agent Quantities (<= {NOISE_MAX_QTY} Notional) ---")
     if not noise_quantities.empty:
@@ -139,7 +138,7 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
     else:
         print("  No trades found for Noise agent analysis in this range.")
 
-    # 2. Momentum Agent Quantities: Trades >= MOMENTUM_MIN_QTY
+    # Momentum Agent Quantities
     momentum_quantities = df[df['notional_quantity'] >= MOMENTUM_MIN_QTY]['notional_quantity']
     print(f"\n--- Analysis for Inferred MOMENTUM Agent Quantities (>= {MOMENTUM_MIN_QTY} Notional) ---")
     if not momentum_quantities.empty:
@@ -154,7 +153,7 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
     else:
         print("  No trades found for Momentum agent analysis in this range.")
 
-    # 3. Value Agent Quantities: Trades >= VALUE_MIN_QTY
+    # Value Agent Quantities
     value_quantities = df[df['notional_quantity'] >= VALUE_MIN_QTY]['notional_quantity']
     print(f"\n--- Analysis for Inferred VALUE Agent Quantities (>= {VALUE_MIN_QTY} Notional) ---")
     if not value_quantities.empty:
@@ -169,7 +168,7 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
     else:
         print("  No trades found for Value agent analysis in this range.")
 
-    # --- Analysis of Specific Notional Quantity Clusters ---
+    # Analysis of Specific Notional Quantity Clusters
     print("\n--- Analysis of Specific Notional Quantity Clusters (for Normal Distributions) ---")
 
     # Define the clusters you suspect. Adjust these ranges based on your histogram observations.
@@ -215,7 +214,7 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
     print(
         f"\nTotal trades found in all specified clusters: {total_trades_in_clusters} ({total_trades_in_clusters / len(df) * 100:.4f}% of total).")
 
-    # --- Visualization ---
+    # Visualization
     print("\nGenerating visualizations...")
 
     plt.style.use('seaborn-darkgrid')
@@ -250,7 +249,7 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
     print("\nAnalysis complete. Use these insights to refine your OrderSizeModel.")
 
 
-# --- Main Execution ---
+# Main Execution
 if __name__ == "__main__":
     historical_trades_df = load_historical_data(HISTORICAL_DATA_PATH, None, QUANTITY_COLUMN_INDEX,
                                                 QUANTITY_COLUMN_NAME)

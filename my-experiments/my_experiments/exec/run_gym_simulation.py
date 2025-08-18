@@ -8,8 +8,6 @@ import csv
 from datetime import datetime
 import random
 import numpy as np
-
-# --- Local Imports ---
 import gym_crypto_markets
 
 from gym_crypto_markets.configs.cdormsc02 import build_config
@@ -43,24 +41,26 @@ if __name__ == "__main__":
     # Extract parameter sections
     bg_params = params.get('background_config_params', {})
 
+    # Handle single exchange configurations
     if args.mode == 'train-historical-se':
-        print("--- Single-Exchange mode activated. Overriding configuration. ---")
+        print("~~~ Single-Exchange mode activated. Overriding configuration. ~~~")
 
-        # 1. Force number of exchanges to 1
+        # Force number of exchanges to 1
         bg_params['exchange_params']['num_exchange_agents'] = 1
         print(f" > num_exchange_agents set to: 1")
 
-        # 2. Filter data templates to only use 'binance'
+        # Filter data templates to only use 'binance'
         if 'binance' in bg_params['historical_templates']:
             binance_template = bg_params['historical_templates']['binance']
             bg_params['historical_templates'] = {'binance': binance_template}
             print(f" > hisotrical_templates filtered to 'binance' only.")
         else:
-                raise ValueError("Single-exchange mode requires a 'binance' tempate in the config")
-    elif args.mode == 'train-abides-se':
-        print(" --- Single-Exchange mode activated. Overriding configuration. ---")
+                raise ValueError("Single-exchange mode requires a 'binance' template in the config")
 
-        #1. force the number of exchanges to 1
+    elif args.mode == 'train-abides-se':
+        print(" ~~~~ Single-Exchange mode activated. Overriding configuration. ~~~~")
+
+        # Force the number of exchanges to 1
         bg_params['exchange_params']['num_exchange_agents'] = 1
         print(f" > num_exchange_agents set to: 1")
         bg_params['agent_populations']['num_arbitrage_agents'] = 0
@@ -68,6 +68,7 @@ if __name__ == "__main__":
 
     env_params = params.get('gym_environment', {})
     runner_params = params.get('simulation_runner', {})
+
     if args.agent:
         active_agent_name = args.agent
         print(f"Using agent specified by command line: --agent {active_agent_name}")
@@ -83,6 +84,7 @@ if __name__ == "__main__":
     if not agent_params:
         raise ValueError(f"Could not find configuration for agent '{active_agent_name}' in the YAML file.")
 
+    # Handle save weight arguments
     save_params = runner_params.get('save_weights', {})
     save_enabled = save_params.get('enabled', False)
     save_dir = save_params.get('directory', 'weights')
@@ -93,6 +95,7 @@ if __name__ == "__main__":
     use_confidence_sizing = agent_params.get('use_confidence_sizing', False)
     env_params["use_confidence_sizing"] = use_confidence_sizing
 
+    # Handle log save params
     log_params = runner_params.get('performance_log', {})
     log_enabled = log_params.get('enabled', True)
     log_dir = log_params.get('directory', 'logs')
@@ -103,6 +106,7 @@ if __name__ == "__main__":
     log_file_path = None
     csv_writer = None
     csv_file = None
+
     if log_enabled:
         timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
         log_file_path = os.path.join(log_dir, f"{active_agent_name}_{args.mode}_log_{timestamp_str}.csv")
@@ -119,6 +123,7 @@ if __name__ == "__main__":
         ]
         csv_writer.writerow(header)
 
+    # Summary log configuration and options
     summary_log_path = None
     summary_csv_writer = None
     summary_csv_file = None
@@ -140,15 +145,15 @@ if __name__ == "__main__":
     # Build the background config dictionary that abides-gym needs
     if args.mode in ['train-abides', 'train-abides-se']:
         print("Initializing ABIDES simulation environment...")
+
         # Get the environment ID from the config
         env_id = env_params.pop('env_id', 'CryptoEnv-v2')
+
         # Create the Gym environment, passing the ABIDES config and other env params
         env = gym.make(env_id, background_config=bg_params, **env_params)
+
     else:  # train-historical, train-historical-se or test-historical
         print("Initializing Historical backtesting environment...")
-        # We need to know the shape of the observation space and action space
-        # For simplicity, we can hardcode them or create a dummy ABIDES env to get them
-        # This assumes your state vector has 17 features and 7 actions
 
         env = HistoricalTradingEnv_v02(
             bg_params=bg_params,
@@ -194,12 +199,12 @@ if __name__ == "__main__":
         if hasattr(agent, 'exploration_rate'):
             agent.exploration_rate = 0.2
 
-    # Simulation Loop
+    # Simulation Loop params
     num_episodes = runner_params.get('num_episodes', 1)
     max_steps = runner_params.get('max_episode_steps', 10000)
 
 
-    # DATA PATH HANDLING
+    # Data path handling
     specific_date = None
 
     historical_dates = bg_params.get('historical_dates')
@@ -220,7 +225,7 @@ if __name__ == "__main__":
         # Reset the environment and the agent's internal state for a new episode.
         # For older Gym versions (like 0.18.0), 'env.reset()' returns only the initial state.
 
-        # Select a new data path for this episode, cycling through the shuffled
+        # Select a new data path for this episode, cycling through the shuffled dates
         current_date = historical_dates[episode % len(historical_dates)] if not specific_date else specific_date
 
         specific_date = None # Comment this out if you want the episode to replay on the same date
@@ -243,8 +248,8 @@ if __name__ == "__main__":
 
             print(f"\n--- Starting Episode {episode + 1}/{num_episodes} using data from date: {current_date} ---")
 
-            # This is a crucial change. You need to override the data paths
-            # for your environment for each episode.
+            # Override the data paths for the environment for each episode.
+            # Such that the data source for the data oracle is random each episode
             override_params = {
                 'data_paths': [current_data_path_1, current_data_path_2]
             }
@@ -300,12 +305,11 @@ if __name__ == "__main__":
         with tqdm(total=max_steps, desc=f"Episode {episode + 1}") as pbar:
             while (not done and step_count < max_steps if max_steps else not done):
                 action_output = agent.choose_action(state, info)
-                new_state, reward, done, info = env.step(action_output)
 
                 try:
                     new_state, reward, done, info = env.step(action_output)
 
-                # incase of assertion errors, end the episode gracefully and restart
+                # Incase of assertion errors, end the episode gracefully and restart
                 except AssertionError as e:
                     print(f"\nERROR: Caught invalid state from environment: {e}. Terminating episode.")
                     new_state = state  # Keep the last valid state
@@ -334,7 +338,7 @@ if __name__ == "__main__":
                     portfolio_value = info.get("true_marked_to_market", 0.0)
 
                     # For the summary log, to calc Sharped ratio
-                    if previous_portfolio_value > 0:  # Avoid division by zero
+                    if previous_portfolio_value > 0:
                         # Calculate the percentage return for this step
                         return_for_step = (portfolio_value - previous_portfolio_value) / previous_portfolio_value
                         step_returns.append(return_for_step)
