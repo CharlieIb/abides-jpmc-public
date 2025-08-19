@@ -86,6 +86,7 @@ class MomentumAgent(TradingAgent):
             if self.exchange_ids:
                 self.subscribed_exchange = self.random_state.choice(self.exchange_ids)
                 super().request_data_subscription(
+                    self.subscribed_exchange,
                     L2SubReqMsg(
                         symbol=self.symbol,
                         freq=int(10e9),
