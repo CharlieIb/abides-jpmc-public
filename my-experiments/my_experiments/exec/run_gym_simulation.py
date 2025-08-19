@@ -352,6 +352,11 @@ if __name__ == "__main__":
                     total_holdings = info.get("total_holdings", 0)
                     cash = info.get("cash", 0.0)
                     market_price = info.get("market_price", 0.0)  # Also requires env modification
+                    market_data = info.get("market_data",{})
+                    exchange_price = {}
+                    for ex_id in range(num_exchanges):
+                        exchange_data = market_data.get(ex_id, -1)
+                        exchange_price[ex_id] = exchange_data.get("last_transaction", 0)
                     log_data = [
                         datetime.now().isoformat(),
                         episode + 1,
@@ -363,8 +368,10 @@ if __name__ == "__main__":
                         total_holdings,
                         f"{cash / 100:.2f}",
                         str(action_output),
-                        f"{market_price / 100:.2f}"
+                        f"{market_price / 100:.2f}",
                     ]
+                    for ex_id in range(num_exchanges):
+                        log_data.append(f"{exchange_price[ex_id]/100:.2f}")
                     csv_writer.writerow(log_data)
                     csv_file.flush()
 

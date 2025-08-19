@@ -88,7 +88,7 @@ background_config_params:
   arbitrage_params:
     wake_up_freq: "60s"
     min_profit_margin:  1
-    pov: 0.30
+    pov: 0.50
     max_inventory: 10000000
 
   # Market Maker Agents
