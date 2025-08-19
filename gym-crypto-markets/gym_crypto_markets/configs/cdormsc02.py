@@ -25,7 +25,9 @@ from abides_multi_exchange.agents import (
     AdaptiveMarketMakerAgent,
     MomentumAgent,
     ArbitrageAgent,
-    ExchangeAgent
+    ExchangeAgent,
+    MomentumAgentSE,
+    ValueAgentSE
 )
 from abides_multi_exchange.agents_gym import FinancialGymAgent
 from ..models import OrderSizeModelSimple, OrderSizeModelNoise
@@ -154,7 +156,7 @@ def build_config(params: Dict):
     oracle = DataOracle(MKT_OPEN, MKT_CLOSE, symbols)
 
     r_bar = int(daily_mean_price)
-    sigma_n = daily_volatility
+    sigma_n = daily_volatility * 0.05
     kappa = value_params['kappa']
     lambda_a = value_params['lambda_a']
 
@@ -209,7 +211,7 @@ def build_config(params: Dict):
 
     # Value Agents
     agents.extend([
-        ValueAgent(
+        ValueAgentSE(
             id=j, name=f"Value Agent {j}", type="ValueAgent", symbol=ticker,
             starting_cash=starting_cash, sigma_n=sigma_n, r_bar=r_bar, kappa=kappa,
             lambda_a=lambda_a, log_orders=log_orders_value, order_size_model=VALUE_ORDER_SIZE_MODEL,
@@ -223,7 +225,7 @@ def build_config(params: Dict):
 
     # Momentum Agents
     agents.extend([
-        MomentumAgent(
+        MomentumAgentSE(
             id=j, name=f"MOMENTUM_AGENT_{j}", type="MomentumAgent", symbol=ticker,
             starting_cash=starting_cash, min_size=momentum_params['min_size'], max_size=momentum_params['max_size'],
             poisson_arrival=momentum_params['poisson_arrival'], wake_up_freq=str_to_ns(momentum_params['wake_up_freq']),

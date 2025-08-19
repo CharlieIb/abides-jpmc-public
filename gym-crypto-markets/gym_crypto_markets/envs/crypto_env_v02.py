@@ -92,6 +92,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         self.done_ratio: float = done_ratio
         self.debug_mode: bool = debug_mode
         self.latest_price: Dict[int, int] = {}
+        self.last_known_prices: Dict[int, float] = {}
 
         # marked_to_market limit to STOP the episode
         self.down_done_condition: float = self.done_ratio * starting_cash
@@ -708,10 +709,40 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         holdings_by_exchange = internal_data.get("holdings_by_exchange", {})
         withdrawal_fees = internal_data.get("withdrawal_fees", {})
         total_value = cash
-        price_map = {
-            d["exchange_id"]: d.get("last_transaction", 0)
-            for d in mkt_data if "exchange_id" in d
-        }
+        price_map = {}
+
+        # Get the summary of the most recent interval from the history.
+        most_recent_summary = self.aggregate_history[-1] if self.aggregate_history else {}
+        most_recent_exchange_data = most_recent_summary.get('per_exchange_data', {})
+
+        for ex_id in range(self.num_exchanges):
+            ex_data = most_recent_exchange_data.get(ex_id, {})
+            ex_total_volume = ex_data.get('total_volume', 0)
+
+            # Tier 1: Use the interval's VWAP if available from aggregate_history.
+            if ex_total_volume > 0:
+                vwap = ex_data.get('sum_price_vol', 0) / ex_total_volume
+                price_map[ex_id] = vwap
+                self.last_known_prices[ex_id] = vwap
+                continue
+
+            # Tier 2: If no trades, try to use the current bid/ask midpoint.
+            found_book = False
+            for data in mkt_data:
+                if data.get("exchange_id") == ex_id:
+                    bids = data.get("bids", [])
+                    asks = data.get("asks", [])
+                    if bids and asks:
+                        midpoint = (bids[0][0] + asks[0][0]) / 2
+                        price_map[ex_id] = midpoint
+                        self.last_known_prices[ex_id] = midpoint
+                        found_book = True
+                        break
+            if found_book:
+                continue
+
+            # Tier 3: If no trades and no book, use the last known price.
+            price_map[ex_id] = self.last_known_prices.get(ex_id, 0)
 
         # print("\n--- M2M DEBUG START ---")
         # print(f"Initial Cash: {cash:,.2f}")

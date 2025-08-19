@@ -64,15 +64,15 @@ background_config_params:
 
   # Population Parameters
   agent_populations:
-    num_value_agents: 204
-    num_momentum_agents: 34
-    num_arbitrage_agents: 3
+    num_value_agents: 200
+    num_momentum_agents: 40
+    num_arbitrage_agents: 10
     # num_mm_agents = defined in cdormsc02
     num_noise_agents: 10000
 
   # Value Agent Parameters
   value_params:
-    kappa: 1.67e-15 # appraisal of mean reversion
+    kappa: 1.67e-16 # appraisal of mean reversion
     lambda_a: 5.7e-12  # arrival rate
 
   # Momentum Agent Parameters
@@ -88,7 +88,7 @@ background_config_params:
   arbitrage_params:
     wake_up_freq: "60s"
     min_profit_margin:  1
-    pov: 0.25
+    pov: 0.30
     max_inventory: 10000000
 
   # Market Maker Agents
@@ -97,10 +97,10 @@ background_config_params:
     wake_up_freq: "60s"
     window_size: "adaptive"
     pov: 0.025
-    num_ticks: 20 # Doubled from baseline, as BTCUSDT spreads are wider than stocks due ot higher volatility
+    num_ticks: 10 # Doubled from baseline, as BTCUSDT spreads are wider than stocks due ot higher volatility
     min_order_size: 1
     skew_beta: 0 # could be altered
-    price_skew: 7 # response to momentum agents, able to shift response to momentum in market
+    price_skew: 4 # response to momentum agents, able to shift response to momentum in market
     level_spacing: 6 # Increase to create less dense OB with larger gaps between price levels  as you would expect to see in crypto
     spread_alpha: 0.85 # Increased from baseline of 0.75, BTC tends to be more sensitive to volatility widening spreads
     backstop_quantity: 0
