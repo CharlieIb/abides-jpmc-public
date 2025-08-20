@@ -197,7 +197,7 @@ if __name__ == "__main__":
         print(f"WARNING loading weights from file for further training from {args.load_weights_path}")
         agent.load_weights(args.load_weights_path)
         if hasattr(agent, 'exploration_rate'):
-            agent.exploration_rate = 0.2
+            agent.exploration_rate = 1.0
 
     # Simulation Loop params
     num_episodes = runner_params.get('num_episodes', 1)
