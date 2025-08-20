@@ -30,7 +30,7 @@ from abides_multi_exchange.agents import (
     ValueAgentSE
 )
 from abides_multi_exchange.agents_gym import FinancialGymAgent
-from ..models import OrderSizeModelSimple, OrderSizeModelNoise
+from ..models import OrderSizeModelSimple, OrderSizeModelNoise, OrderSizeModel
 from ..oracle import DataOracle
 from abides_markets.utils import generate_latency_model
 
@@ -166,11 +166,16 @@ def build_config(params: Dict):
     else: # 'simple'
         print("--- Using single 'Simple' order size model for all agents. ---")
         model = OrderSizeModelSimple
+        # model = OrderSizeModel
 
 
     NOISE_ORDER_SIZE_MODEL = model('noise')
     VALUE_ORDER_SIZE_MODEL = model('value')
     MOMENTUM_ORDER_SIZE_MODEL = model('momentum')
+
+    # NOISE_ORDER_SIZE_MODEL = model()
+    # VALUE_ORDER_SIZE_MODEL = model()
+    # MOMENTUM_ORDER_SIZE_MODEL = model()
 
 
     # Agent configuration

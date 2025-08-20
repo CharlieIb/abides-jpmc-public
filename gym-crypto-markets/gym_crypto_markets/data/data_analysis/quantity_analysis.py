@@ -8,7 +8,7 @@ import zipfile
 
 #  Configuration
 
-HISTORICAL_DATA_PATH = '/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/data_extraction/archive/BTCUSDT-trades-2025-06-11.csv'
+HISTORICAL_DATA_PATH = 'BTCUSDT-trades-2025-07-10.csv'
 #HISTORICAL_DATA_PATH = '/rds/projects/a/aranboll-ai-research/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/data_extraction/BTCUSDT-trades-2025-05.zip'
 CSV_FILE_IN_ZIP = 'BTCUSDT-trades-2025-05.csv'
 QUANTITY_COLUMN_INDEX = 2
@@ -84,7 +84,7 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
 
     # Convert to numeric, handling potential errors
     df[quantity_col] = pd.to_numeric(df[quantity_col], errors='coerce')
-    df.dropna(subset=[quantity_col], inplace=True) # Remove rows where quantity couldn't be converted
+    df.dropna(subset=[quantity_col], inplace=True)  # Remove rows where quantity couldn't be converted
     NOTIONAL_SCALING_FACTOR = 100000
 
     print(f"\nApplying notional scaling factor of {NOTIONAL_SCALING_FACTOR} to quantities.")
@@ -120,6 +120,23 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
         'Percentage': category_percentages
     })
     print(category_df)
+
+    # --- NEW ANALYSIS: Find most frequent quantities above a threshold ---
+    print("\n--- Analysis of Most Frequent Trade Quantities (Above 0.0002) ---")
+    min_quantity_threshold = 0.0002
+
+    # Filter the DataFrame based on the original quantity column
+    filtered_df = df[df[quantity_col] > min_quantity_threshold]
+
+    if not filtered_df.empty:
+        # Get the value counts of the trade quantities
+        frequent_quantities = filtered_df[quantity_col].value_counts()
+
+        # Display the top 20 most frequent quantities
+        print(f"Top 20 most frequent trade quantities larger than {min_quantity_threshold}:")
+        print(frequent_quantities.head(20))
+    else:
+        print(f"No trades found with a quantity greater than {min_quantity_threshold}.")
 
     print("\n--- Inferring Agent Trade Types and Analyzing Filtered Quantities ---")
 
@@ -174,14 +191,14 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
     # Define the clusters you suspect. Adjust these ranges based on your histogram observations.
     # These are notional quantities.
     clusters_to_analyze = {
-        "Cluster 50-70": (50, 70),
-        "Cluster ~100": (90, 110),
-        "Cluster ~200-250": (190, 210),
-        "Cluster ~240-260": (240, 260),
-        "Cluster 500": (450, 550),
-        "Cluster 1000": (950, 1050),
-        "Cluster 100k (1 BTC)": (90000, 110000),
-        "Cluster 500k (5 BTC)": (450000, 550000),
+        "Cluster 80-120": (80, 120),
+        "Cluster ~500": (450, 550),
+        "Cluster ~900-1050": (900, 1050),
+        "Cluster ~1800-2200": (1800, 2200),
+        "Cluster 2500": (2400, 2600),
+        "Cluster 5000": (4500, 5500),
+        "Cluster 10K (0.1 BTC)": (9750, 10250),
+        "Cluster 100K (1 BTC)": (99000, 110000),
         "Cluster 1M (10 BTC)": (900000, 1100000),
     }
 

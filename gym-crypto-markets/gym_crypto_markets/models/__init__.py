@@ -1,2 +1,3 @@
 from .crypto_order_size_model import OrderSizeModelNoise
 from .crypto_order_size_model_simple import OrderSizeModelSimple
+from .order_size_model import OrderSizeModel

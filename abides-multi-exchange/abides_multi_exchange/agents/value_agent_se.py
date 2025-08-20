@@ -24,7 +24,7 @@ class ValueAgentSE(TradingAgent):
             sigma_n: float = 10_000,
             r_bar: int = 100_000,
             kappa: float = 0.05,
-            sigma_s: float = 100_000_000,
+            sigma_s: float = 100_000_000_000,
             order_size_model=None,
             lambda_a: float = 0.005,
             log_orders: bool = False,
@@ -122,23 +122,26 @@ class ValueAgentSE(TradingAgent):
         if self.prev_wake_time is None:
             self.prev_wake_time = mkt_open
 
-        delta = self.current_time - self.prev_wake_time
+        # delta = self.current_time - self.prev_wake_time
+        #
+        # r_tprime = (1 - (1 - self.kappa) ** delta) * self.r_bar
+        # r_tprime += ((1 - self.kappa) ** delta) * self.r_t
+        #
+        # sigma_tprime = (((1 - self.kappa) ** (2 * delta)) * self.sigma_t )
+        # sigma_tprime += ((1 - (1 - self.kappa) ** (2 * delta)) / (1 - (1 - self.kappa) ** 2)) * self.sigma_s
+        #
+        # self.r_t = (self.sigma_n / (self.sigma_n + sigma_tprime)) * r_tprime
+        # self.r_t += (sigma_tprime / (self.sigma_n + sigma_tprime)) * obs_t
+        #
+        # self.sigma_t = (self.sigma_n * self.sigma_t) / (self.sigma_n + self.sigma_t)
+        #
+        # delta_to_close = max(0, (mkt_close - self.current_time))
+        # r_T = (1 - (1 - self.kappa) ** delta_to_close) * self.r_bar
+        # r_T += (((1 - self.kappa) ** delta_to_close) * self.r_t)
+        # r_T = int(round(r_T))
 
-        r_tprime = (1 - (1 - self.kappa) ** delta) * self.r_bar
-        r_tprime += ((1 - self.kappa) ** delta) * self.r_t
+        r_T = int(round(obs_t))
 
-        sigma_tprime = (((1 - self.kappa) ** (2 * delta)) * self.sigma_t )
-        sigma_tprime += ((1 - (1 - self.kappa) ** (2 * delta)) / (1 - (1 - self.kappa) ** 2)) * self.sigma_s
-
-        self.r_t = (self.sigma_n / (self.sigma_n + sigma_tprime)) * r_tprime
-        self.r_t += (sigma_tprime / (self.sigma_n + sigma_tprime)) * obs_t
-
-        self.sigma_t = (self.sigma_n * self.sigma_t) / (self.sigma_n + self.sigma_t)
-
-        delta_to_close = max(0, (mkt_close - self.current_time))
-        r_T = (1 - (1 - self.kappa) ** delta_to_close) * self.r_bar
-        r_T += (((1 - self.kappa) ** delta_to_close) * self.r_t)
-        r_T = int(round(r_T))
 
         self.prev_wake_time = self.current_time
         logger.debug(f"{self.name} estimates r_T = {r_T} as of {self.current_time}")

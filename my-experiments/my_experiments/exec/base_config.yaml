@@ -4,7 +4,7 @@ background_config_params:
   end_time: "23:59:59"
   stdout_log_level: "INFO"
   ticker: "ABM"
-  starting_cash: 10000000000  # Cash in this simulator is always in CENTS.
+  starting_cash: 1000000000000000  # Cash in this simulator is always in CENTS.
   order_size_model_type: 'simple'  # Is the phenomenon you are researching defined by the noise ('realistic') or not('simple').
                                       # NOTE: realism will require an increase in noise agents, this will be computationally taxing
 
@@ -65,7 +65,7 @@ background_config_params:
   # Population Parameters
   agent_populations:
     num_value_agents: 200
-    num_momentum_agents: 40
+    num_momentum_agents: 35
     num_arbitrage_agents: 10
     # num_mm_agents = defined in cdormsc02
     num_noise_agents: 10000
@@ -102,7 +102,7 @@ background_config_params:
     skew_beta: 0 # could be altered
     price_skew: 4 # response to momentum agents, able to shift response to momentum in market
     level_spacing: 6 # Increase to create less dense OB with larger gaps between price levels  as you would expect to see in crypto
-    spread_alpha: 0.85 # Increased from baseline of 0.75, BTC tends to be more sensitive to volatility widening spreads
+    spread_alpha: 0.75 # Increased from baseline of 0.75, BTC tends to be more sensitive to volatility widening spreads
     backstop_quantity: 0
     cancel_limit_delay: 50
 
@@ -154,8 +154,8 @@ agent_configurations:
   SETripleBarrier:
     agent_module: "my_experiments.agents"
     agent_class: "SingleExchangeTripleBarrierAgent"
-    profit_take_percent: 0.05  # 0.05%
-    stop_loss_percent: 0.03  # 0.03%
+    profit_take_percent: 0.5  # 0.05%
+    stop_loss_percent: 0.3  # 0.03%
     time_limit_steps: 30
     max_long_positions: 10
     max_short_positions: 5
@@ -164,8 +164,8 @@ agent_configurations:
   METripleBarrier:
     agent_module: "my_experiments.agents_multi"
     agent_class: "MultiExchangeTripleBarrierAgent"
-    profit_take_percent: 0.05  # 0.05%
-    stop_loss_percent: 0.03  # 0.03%
+    profit_take_percent: 0.5  # 0.05%
+    stop_loss_percent: 0.3  # 0.03%
     time_limit_steps: 30
     max_long_positions: 10
     max_short_positions: 5
@@ -173,7 +173,7 @@ agent_configurations:
 
 simulation_runner:
   num_episodes: 1
-  max_episode_steps: 1500
+  max_episode_steps: 3000
   save_weights:
     enabled: True
     directory: "weights"

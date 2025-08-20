@@ -355,7 +355,7 @@ if __name__ == "__main__":
                     market_data = info.get("market_data",{})
                     exchange_price = {}
                     for ex_id in range(num_exchanges):
-                        exchange_data = market_data.get(ex_id, -1)
+                        exchange_data = market_data.get(ex_id, {})
                         exchange_price[ex_id] = exchange_data.get("last_transaction", 0)
                     log_data = [
                         datetime.now().isoformat(),
