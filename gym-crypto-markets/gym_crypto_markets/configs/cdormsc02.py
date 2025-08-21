@@ -30,8 +30,7 @@ from abides_multi_exchange.agents import (
     ValueAgentSE
 )
 from abides_multi_exchange.agents_gym import FinancialGymAgent
-from ..models import OrderSizeModelSimple, OrderSizeModelNoise
-from abides_markets.models import OrderSizeModel
+from ..models import OrderSizeModelSimple, OrderSizeModelNoise, OrderSizeModel
 from ..oracle import DataOracle
 from abides_markets.utils import generate_latency_model
 
