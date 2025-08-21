@@ -41,7 +41,7 @@ cd /rds/projects/a/arnaboll-ai-research/projects/abides_gym_crypto_sim/abides-jp
 echo "Starting the gym simulation..."
 
 # This is the line that runs your main simulation script.
-"${YOUR_ACTUAL_ABIDES_ENV_PYTHON_PATH}" -u run_gym_simulation.py base_config_bear.yaml --mode train-abides-se --agent DQNAgent
+"${YOUR_ACTUAL_ABIDES_ENV_PYTHON_PATH}" -u run_gym_simulation.py base_config_bear.yaml --mode train-abides --agent DQNAgent
 
 if [ $? -eq 0 ]; then
   echo "Gym simulation completed successfully."
