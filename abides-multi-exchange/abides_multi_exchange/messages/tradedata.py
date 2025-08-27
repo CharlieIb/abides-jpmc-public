@@ -34,3 +34,4 @@ class TradeDataMsg(MarketDataMsg):
     """
     trades: List[Dict[str, Any]]
     exchange_id: int
+

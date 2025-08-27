@@ -369,7 +369,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         - 5: TRANSFER_FROM_0_TO_1
         - 6: TRANSFER_FROM_1_TO_0
         """
-        if action == 0:
+        if action == 0: # HOLD
             return []  # HOLD
         if self.use_confidence_sizing:
             trade_size = self.min_trade_size + (self.max_trade_size - self.min_trade_size) * confidence
@@ -421,12 +421,8 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
 
             direction = "BUY" if is_buy else "SELL"
 
-            return [{
-                "type": "MKT",
-                "direction": direction,
-                "size": trade_size,
-                "exchange_id": exchange_id
-            }]
+            return [{"type": "MKT", "direction": direction, "size": trade_size, "exchange_id": exchange_id }]
+
         # Action 5: TRANSFER_FROM_0_TO_1
         elif action in [5, 6] and self.num_exchanges > 1:
             if action == 5:
@@ -481,11 +477,17 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         # The action space is: [0:HOLD, 1:BUY_E0, 2:SELL_E0, 3:BUY_E1, 4:SELL_E1, 5:TFR_1->0, 6:TFR_0->1]
         mask = np.ones(self.num_actions, dtype=np.int8)
 
+        # Get latest prices
+        ex_0_best_ask = self._get_latest_ask_price(0)
+        ex_1_best_ask = self._get_latest_ask_price(1)
+
         # Check cash for BUY actions
         # Actions 1/3: BUY on exchanges 0 and 1 respectively
-        if self.gym_agent.cash <= 0:
+        if self.gym_agent.cash <= ex_0_best_ask * self.order_fixed_size:
             mask[1] = 0 # Disable BUY on Exchange 0
+        if self.gym_agent.cash <= ex_1_best_ask * self.order_fixed_size:
             mask[3] = 0 # Disable BUY on Exchange 1
+
         if self.num_exchanges == 2:
             # Check holdings for transfer actions
             # action 5: TFR from 1 to 0
@@ -669,7 +671,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         # Loop through the raw trades to populate the summary
         for trade in trade_history:
             price = trade.get('price')
-            volume = trade.get('quantity')  # Correct key is 'quantity'
+            volume = trade.get('quantity')
             ex_id = trade.get('exchange_id')
 
             # Skip if data is incomplete
@@ -715,18 +717,19 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
         most_recent_summary = self.aggregate_history[-1] if self.aggregate_history else {}
         most_recent_exchange_data = most_recent_summary.get('per_exchange_data', {})
 
+        # Loop to find most recent price (VWAP, mid-price, last_price)
         for ex_id in range(self.num_exchanges):
             ex_data = most_recent_exchange_data.get(ex_id, {})
             ex_total_volume = ex_data.get('total_volume', 0)
 
-            # Tier 1: Use the interval's VWAP if available from aggregate_history.
+            # Source 1: Use the interval's VWAP if available from aggregate_history.
             if ex_total_volume > 0:
                 vwap = ex_data.get('sum_price_vol', 0) / ex_total_volume
                 price_map[ex_id] = vwap
                 self.last_known_prices[ex_id] = vwap
                 continue
 
-            # Tier 2: If no trades, try to use the current bid/ask midpoint.
+            # Source 2: If no trades, try to use the current bid/ask midpoint.
             found_book = False
             for data in mkt_data:
                 if data.get("exchange_id") == ex_id:
@@ -741,7 +744,7 @@ class SubGymMarketsCryptoDailyInvestorEnv_v02(AbidesGymMarketsEnv):
             if found_book:
                 continue
 
-            # Tier 3: If no trades and no book, use the last known price.
+            # Source 3: If no trades and no book, use the last known price.
             price_map[ex_id] = self.last_known_prices.get(ex_id, 0)
 
         # print("\n--- M2M DEBUG START ---")

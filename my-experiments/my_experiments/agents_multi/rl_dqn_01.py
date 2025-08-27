@@ -290,9 +290,22 @@ class DQNAgent():
     def load_weights(self, file_path: str):
         """Loads weights into the policy and target networks from a file."""
         print(f"\nLoading weights from {file_path}...")
-        self.policy_net.load_state_dict(torch.load(file_path))
+        saved_state_dict = torch.load(file_path)
+        self.policy_net.load_state_dict(saved_state_dict)
         # Crucially, also update the target network to match
         self.target_net.load_state_dict(self.policy_net.state_dict())
+        current_state_dict = self.policy_net.state_dict()
+
+        all_match = True
+        for param_name in saved_state_dict:
+            if not torch.equal(saved_state_dict[param_name], current_state_dict[param_name]):
+                print(f"MISMATCH FOUND in parameter: {param_name}")
+                all_match = False
+
+        if all_match:
+            print("✅ SUCCESS: All weights loaded and verified successfully.")
+        else:
+            print("❌ ERROR: Weight mismatch detected after loading.")
         self.policy_net.eval()  # Set to evaluation mode
         self.target_net.eval()
         print("Weights loaded.")

@@ -21,7 +21,7 @@ def resample_price_data(
         )
 
         print("Converting timestamp from unit 'ms'...")
-        df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'], unit='ms', errors='raise')
+        df['TIMESTAMP'] = pd.to_datetime(df['TIMESTAMP'], unit='us', errors='raise')
 
         df.set_index('TIMESTAMP', inplace=True)
 

@@ -1022,8 +1022,6 @@ class TradingAgent(FinancialAgent):
         if symbol not in self.holdings_by_exchange[to_exchange]:
             self.holdings_by_exchange[to_exchange][symbol] = 0
 
-        # old_holdings = self.holdings_by_exchange[to_exchange][symbol]
-
         self.holdings_by_exchange[to_exchange][symbol] += size
 
         self.logEvent("TRANSFER_COMPLETE", f"{size} shares of {symbol} arrived at Exchange {to_exchange}")

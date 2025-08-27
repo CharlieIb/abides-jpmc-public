@@ -36,7 +36,7 @@ class ArbitrageAgent(TradingAgent):
             exchange_ids: Optional[List[int]] = None,
             trading_fee_percentage: float = 0.001, # 0.1% fee per trade
             rebalance_threshold: int = 9000, # Difference between exchange holdings and average
-            initial_symbol_holdings_on_each_exchange: int = 10000
+            initial_symbol_holdings_on_each_exchange: int = 100000
     ) -> None:
         super().__init__(
             id,
@@ -130,8 +130,8 @@ class ArbitrageAgent(TradingAgent):
             best_ask_price = buy_market.asks[0][0]
             best_bid_price = sell_market.bids[0][0]
 
-            # As the agent rebalances periodically, it models the trading fee percentage
-            # rather than use the actual one --- this can be adjusted for realism
+            # It models the trading fee percentage rather than use the actual one
+            # --- this can be adjusted for realism
             effective_buy_price = best_ask_price * (1 + self.trading_fee_percentage)
             effective_sell_price = best_bid_price * (1 - self.trading_fee_percentage)
 
@@ -144,7 +144,8 @@ class ArbitrageAgent(TradingAgent):
                 dynamic_order_size = int(round(self.pov * available_liquidity))
 
                 if dynamic_order_size <= 0:
-                    continue # Not enough liquidity to trade
+                    # Not enough liquidity to trade
+                    continue
 
                 cash = self.cash
                 holdings_on_sell_exchange = self.get_holdings_by_exchange(
@@ -188,6 +189,7 @@ class ArbitrageAgent(TradingAgent):
         Triggered periodically (e.g. daily) or when inventories become too skewed.
         It involves making on-chain transfers
         """
+
         logger.info(f"Agent {self.name} is assessing the need for rebalancing.")
 
         # Exit if rebalancing is not possible or necessary
@@ -303,12 +305,12 @@ class ArbitrageAgent(TradingAgent):
         if total_holdings <= 0 or not self.exchange_ids:
             return False
 
-        # Get target even distribution.
+        # get target "even" distribution.
         current_holdings = {ex_id: self.get_holdings_by_exchange(self.symbol, ex_id) for ex_id in self.exchange_ids}
         target_per_exchange = total_holdings / len(self.exchange_ids)
 
-        # Check if any exchange deviates from the target by more than the threshold.
-        # If so rebalance
+        # check if any exchange deviates from the target by more than the threshold.
+        # if so rebalance
         for holding in current_holdings.values():
             if abs(holding - target_per_exchange) > self.rebalance_threshold:
                 logger.info(

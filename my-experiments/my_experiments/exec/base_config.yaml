@@ -29,6 +29,13 @@ background_config_params:
   # Data Oracle Parameters
   data_file_path: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/2020-09-26/BTCUSDT-trades-2020-09-26-1s.csv"
   data_path_template: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/{}/BTCUSDT-trades-{}-1s.csv"
+  historical_templates:
+    binance: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/{}/BTCUSDT-trades-{}-1m-hist.csv"
+    kraken: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/{}/kraken_btcusdt_trades_{}.csv"
+  test_data_path_template: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/test/{}/BTCUSDT-trades-{}-1s.csv"
+  test_historical_templates:
+    binance: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/test/{}/BTCUSDT-trades-{}-1m-hist.csv"
+    kraken: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/test/{}/kraken_btcusdt_trades_{}.csv"
   historical_dates:
     - "2020-09-26"
     - "2020-10-19"
@@ -52,9 +59,16 @@ background_config_params:
     - "2025-06-09"
     - "2025-06-11"
     - "2025-07-10"
-  historical_templates:
-    binance: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/{}/BTCUSDT-trades-{}-1m-hist.csv"
-    kraken: "/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/train/{}/kraken_btcusdt_trades_{}.csv"
+  test_historical_dates:
+    - "2020-07-31"
+    - "2021-01-17"
+    - "2023-12-31"
+    - "2024-01-13"
+    - "2024-02-26"
+    - "2024-04-22"
+    - "2024-11-04"
+    - "2025-03-03"
+    - "2025-07-17"
 
   # Withdrawal Fee Parameters
   withdrawal_fees_enabled: True
@@ -65,7 +79,7 @@ background_config_params:
   # Population Parameters
   agent_populations:
     num_value_agents: 200
-    num_momentum_agents: 35
+    num_momentum_agents: 40
     num_arbitrage_agents: 10
     # num_mm_agents = defined in cdormsc02
     num_noise_agents: 10000
@@ -172,7 +186,7 @@ agent_configurations:
 
 
 simulation_runner:
-  num_episodes: 100
+  num_episodes: 9
   max_episode_steps: 3000
   save_weights:
     enabled: True

@@ -220,7 +220,7 @@ def process_dataframe_for_env(
         }
 
         # Apply resampling. Use origin='start' to ensure intervals align consistently.
-        resampled_df = df.resample(freq, origin='start').agg(aggregation_rules)
+        resampled_df = df.resample(freq).agg(aggregation_rules)
 
         # --- 3. Post-processing and Final Calculations ---
         # Handle cases where quantity is zero (no trades in an interval) to avoid division by zero

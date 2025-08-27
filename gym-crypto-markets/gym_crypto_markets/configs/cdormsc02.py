@@ -165,17 +165,17 @@ def build_config(params: Dict):
         model = OrderSizeModelNoise
     else: # 'simple'
         print("--- Using single 'Simple' order size model for all agents. ---")
-        # model = OrderSizeModelSimple
-        model = OrderSizeModel
+        model = OrderSizeModelSimple
+        # model = OrderSizeModel
 
 
-    # NOISE_ORDER_SIZE_MODEL = model('noise')
-    # VALUE_ORDER_SIZE_MODEL = model('value')
-    # MOMENTUM_ORDER_SIZE_MODEL = model('momentum')
+    NOISE_ORDER_SIZE_MODEL = model('noise')
+    VALUE_ORDER_SIZE_MODEL = model('value')
+    MOMENTUM_ORDER_SIZE_MODEL = model('momentum')
 
-    NOISE_ORDER_SIZE_MODEL = model()
-    VALUE_ORDER_SIZE_MODEL = model()
-    MOMENTUM_ORDER_SIZE_MODEL = model()
+    # NOISE_ORDER_SIZE_MODEL = model()
+    # VALUE_ORDER_SIZE_MODEL = model()
+    # MOMENTUM_ORDER_SIZE_MODEL = model()
 
 
     # Agent configuration

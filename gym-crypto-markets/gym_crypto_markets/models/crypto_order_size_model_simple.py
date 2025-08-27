@@ -17,8 +17,8 @@ from pomegranate import GeneralMixtureModel
 
 
 
-NOISE_LOG_NORMAL_MEAN_SCALED = 2.8871
-NOISE_LOG_NORMAL_STD_SCALED = 1.9939
+NOISE_LOG_NORMAL_MEAN_SCALED = 3.1
+NOISE_LOG_NORMAL_STD_SCALED = 2.1
 #
 # VM_LOG_NORMAL_MEAN_SCALED = 4.8073
 # VM_LOG_NORMAL_STD_SCALED = 2.050
@@ -29,45 +29,47 @@ NOISE_LOG_NORMAL_STD_SCALED = 1.9939
 order_size = {
     "class": "GeneralMixtureModel",
     "distributions": [
-        {
-            "class": "Distribution",
-            "name": "LogNormalDistribution",
-            "parameters": [NOISE_LOG_NORMAL_MEAN_SCALED, NOISE_LOG_NORMAL_MEAN_SCALED],
-            "frozen": False,
-        },
-        {
-            "class": "Distribution",
-            "name": "NormalDistribution",
-            "parameters": [100.0, 5.00],
-            "frozen": True,
-        },
-        {
-            "class": "Distribution",
-            "name": "NormalDistribution",
-            "parameters": [250.0, 5.00],
-            "frozen": True,
-        },
-{
-            "class": "Distribution",
-            "name": "NormalDistribution",
-            "parameters": [500.0, 5.00],
-            "frozen": True,
-        },
-        {
-            "class": "Distribution",
-            "name": "NormalDistribution",
-            "parameters": [1000.0, 10.00],
-            "frozen": True,
-        },
+      {
+        "class": "Distribution",
+        "name": "LogNormalDistribution",
+        "parameters": [NOISE_LOG_NORMAL_MEAN_SCALED, NOISE_LOG_NORMAL_STD_SCALED],
+        "frozen": False
+      },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [50.0, 2.5], "frozen": True},
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [200.0, 10.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [250.0, 12.5], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [400.0, 20.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [100.0, 5.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [1000.0, 50.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [300.0, 15.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [700.0, 35.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [2000.0, 100.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [5000.0, 250.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [800.0, 40.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [500.0, 25.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [600.0, 30.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [900.0, 45.0], "frozen": True },
+      { "class": "Distribution", "name": "NormalDistribution", "parameters": [10000.0, 500.0], "frozen": True }
     ],
     "weights": [
-        0.10,
-        0.60,
-        0.10,
-        0.10,
-        0.10,
-        ],
-}
+      0.2000,
+      0.4048,
+      0.0651,
+      0.0559,
+      0.0449,
+      0.0376,
+      0.0364,
+      0.0357,
+      0.0305,
+      0.0248,
+      0.0229,
+      0.0191,
+      0.0185,
+      0.0176,
+      0.0161,
+      0.0078
+    ]
+  }
 
 
 class OrderSizeModelSimple:

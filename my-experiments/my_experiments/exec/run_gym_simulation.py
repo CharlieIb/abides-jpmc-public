@@ -20,7 +20,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Run an ABIDES-Gym simulation from a YAML config file.")
     parser.add_argument('config_path', type=str, help="Path to the YAML configuration file.")
     parser.add_argument('--mode', type=str, default='train-abides',
-                        choices=['train-abides', 'train-historical', 'test-historical', 'train-historical-se', 'train-abides-se'],
+                        choices=['train-abides', 'train-historical', 'train-historical-se', 'train-abides-se', 'test-historical','test-historical-se', 'test-abides', 'test-abides-se'],
                         help="The mode to run the simulation in.")
     parser.add_argument('--agent', type=str, default=None,
                         choices=['MeanReversionAgent', 'DQNAgent', 'PPOAgent', 'SETripleBarrier', 'METripleBarrier'],
@@ -42,7 +42,7 @@ if __name__ == "__main__":
     bg_params = params.get('background_config_params', {})
 
     # Handle single exchange configurations
-    if args.mode == 'train-historical-se':
+    if args.mode in ['train-historical-se', 'test-historical-se']:
         print("~~~ Single-Exchange mode activated. Overriding configuration. ~~~")
 
         # Force number of exchanges to 1
@@ -57,7 +57,14 @@ if __name__ == "__main__":
         else:
                 raise ValueError("Single-exchange mode requires a 'binance' template in the config")
 
-    elif args.mode == 'train-abides-se':
+        if 'binance' in bg_params['test_historical_templates']:
+            binance_template = bg_params['test_historical_templates']['binance']
+            bg_params['test_historical_templates'] = {'binance': binance_template}
+            print(f" > test_hisotrical_templates filtered to 'binance' only.")
+        else:
+                raise ValueError("Single-exchange mode requires a 'binance' template in the config")
+
+    elif args.mode in ['train-abides-se', 'test-abides-se', 'test-historical-se', 'test-historical-se']:
         print(" ~~~~ Single-Exchange mode activated. Overriding configuration. ~~~~")
 
         # Force the number of exchanges to 1
@@ -143,7 +150,7 @@ if __name__ == "__main__":
 
     # Initialise Environment
     # Build the background config dictionary that abides-gym needs
-    if args.mode in ['train-abides', 'train-abides-se']:
+    if args.mode in ['train-abides', 'train-abides-se', 'test-abides', 'test-abides-se']:
         print("Initializing ABIDES simulation environment...")
 
         # Get the environment ID from the config
@@ -159,7 +166,7 @@ if __name__ == "__main__":
             bg_params=bg_params,
             env_params=env_params,
         )
-
+    print(env.unwrapped.num_exchanges)
     env.seed(bg_params.get('seed', 0))
     num_exchanges = env.unwrapped.num_exchanges
 
@@ -186,7 +193,7 @@ if __name__ == "__main__":
     agent.initial_cash = env.unwrapped.starting_cash
 
     # If testing, turn of exploration rate and load pre-trained weights
-    if args.mode == 'test-historical':
+    if args.mode in ['test-historical', 'test-historical-se', 'test-abides', 'test-abides-se']:
         if not args.load_weights_path:
             raise ValueError("Must provide --load_weights_path in test mode.")
         agent.load_weights(args.load_weights_path)
@@ -206,8 +213,11 @@ if __name__ == "__main__":
 
     # Data path handling
     specific_date = None
+    if args.mode in ['train-abides', 'train-abides-se', 'train-historical', 'train-historical-se']:
+        historical_dates = bg_params.get('historical_dates')
+    elif args.mode in ['test-abides', 'test-abides-se', 'test-historical', 'test-historical-se']:
+        historical_dates = bg_params.get('test_historical_dates')
 
-    historical_dates = bg_params.get('historical_dates')
     if args.date in historical_dates:
         specific_date = args.date
         print(f"\n Date {specific_date} is available, loading data into simulation .... \n")
@@ -215,10 +225,16 @@ if __name__ == "__main__":
         random.shuffle(historical_dates)
         print("Shuffled historical dates.")
 
-    historical_templates = bg_params.get('historical_templates')
-    hist_path_template_1 = historical_templates.get('binance')
-    hist_path_template_2 = historical_templates.get('kraken')
-    abides_path_template = bg_params.get('data_path_template')
+    if args.mode in ['train-abides', 'train-abides-se', 'train-historical', 'train-historical-se']:
+        historical_templates = bg_params.get('historical_templates')
+        hist_path_template_1 = historical_templates.get('binance')
+        hist_path_template_2 = historical_templates.get('kraken')
+        abides_path_template = bg_params.get('data_path_template')
+    elif args.mode in ['test-abides', 'test-historical', 'test-abides-se', 'test-historical-se']:
+        historical_templates = bg_params.get('test_historical_templates')
+        hist_path_template_1 = historical_templates.get('binance')
+        hist_path_template_2 = historical_templates.get('kraken')
+        abides_path_template = bg_params.get('test_data_path_template')
 
 
     for episode in range(num_episodes):
@@ -230,7 +246,7 @@ if __name__ == "__main__":
 
         specific_date = None # Comment this out if you want the episode to replay on the same date
 
-        if args.mode == 'train-abides':
+        if args.mode in ['train-abides', 'train-abides-se', 'test-abides', 'test-abides-se']:
             current_data_path = abides_path_template.format(current_date, current_date)
 
             print(f"\n--- Starting Episode {episode + 1}/{num_episodes} using data: {os.path.basename(current_data_path)} ---")
@@ -238,21 +254,25 @@ if __name__ == "__main__":
             # Create the override dictionary to pass to the reset method
             override_params = {'data_file_path': current_data_path}
             state = env.reset(override_bg_params=override_params)
-        elif args.mode in ['train-historical', 'test-historical']:
+        elif args.mode in ['train-historical', 'train-historical-se', 'test-historical', 'test-historical-se']:
 
             # Dynamically generate the paths for this episode using the templates
             current_data_path_1 = hist_path_template_1.format(current_date, current_date)
-            current_data_path_2 = hist_path_template_2.format(current_date, current_date)
             print(current_data_path_1)
-            print(current_data_path_2)
+            if hist_path_template_2:
+                current_data_path_2 = hist_path_template_2.format(current_date, current_date)
+                print(current_data_path_2)
 
             print(f"\n--- Starting Episode {episode + 1}/{num_episodes} using data from date: {current_date} ---")
 
             # Override the data paths for the environment for each episode.
             # Such that the data source for the data oracle is random each episode
-            override_params = {
-                'data_paths': [current_data_path_1, current_data_path_2]
-            }
+            if hist_path_template_2:
+                override_params = {
+                    'data_paths': [current_data_path_1, current_data_path_2]
+                }
+            else:
+                override_params = {'data_paths': [current_data_path_1]}
             state = env.reset(override_bg_params=override_params)
         else:
             current_date = historical_dates[episode % len(historical_dates)]

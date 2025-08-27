@@ -79,7 +79,7 @@ class HistoricalTradingEnv_v02(gym.Env):
 
         if not data_paths or not isinstance(data_paths, list):
             raise ValueError("Historical environment requires a list of 'data_paths' to be provided.")
-
+        print(data_paths, self.num_exchanges)
         assert len(data_paths) == self.num_exchanges, \
             "The number of data paths provided does not match num_exchange_agents in the config."
 
@@ -290,8 +290,11 @@ class HistoricalTradingEnv_v02(gym.Env):
 
         # Aggregate Global Features
         total_market_volume = sum(d.get('volume', 0) for d in current_data_per_exchange)
-        sum_price_vol = sum(d.get('vwap', d.get('price', 0)) * d.get('volume', 0) for d in current_data_per_exchange)
-        global_vwap = sum_price_vol / total_market_volume if total_market_volume > 0 else 0
+        total_buy_volume = sum(d.get('buy_volume', 0) for d in current_data_per_exchange)
+
+        # Calculate global_vwap as the volume-weighted average of the per-exchange VWAPs
+        sum_vwap_vol = sum(d.get('vwap', 0) * d.get('volume', 0) for d in current_data_per_exchange)
+        global_vwap = sum_vwap_vol / total_market_volume if total_market_volume > 0 else 0
         self.vwap_history.append(global_vwap)
 
         # Volatility Calculation
@@ -302,7 +305,7 @@ class HistoricalTradingEnv_v02(gym.Env):
             global_volatility = 0
 
         # TVI as it requires buy/sell volume breakdown
-        global_tvi = 0.5
+        global_tvi = total_buy_volume / total_market_volume if total_market_volume > 0 else 0.5
 
         # Agent-Specific Features
         self.total_holdings = sum(self.holdings_by_exchange)
@@ -314,16 +317,19 @@ class HistoricalTradingEnv_v02(gym.Env):
             local_data = current_data_per_exchange[i]
             local_vwap = local_data.get('vwap', local_data.get('price', 0))
             local_volume = local_data.get('volume', 0)
+            local_buy_volume = local_data.get('buy_volume', 0)
 
             price_dev = local_vwap - global_vwap if local_vwap > 0 else 0
             vol_share = local_volume / total_market_volume if total_market_volume > 0 else (1 / self.num_exchanges)
-            tvi = 0.5  # Placeholder
+            tvi = local_buy_volume / local_volume if local_volume > 0 else 0.5
+
             exchange_features.extend([price_dev, vol_share, tvi])
 
         # Temporal Features (from global VWAP history)
         padded_returns = np.zeros(self.num_temporal_features)
         if len(self.vwap_history) > 1:
-            returns = np.diff(np.array(list(self.vwap_history)))
+            vwap_array = np.array(list(self.vwap_history))
+            returns = np.log(vwap_array[1:] / vwap_array[:-1])
             padded_returns[-len(returns):] = returns
 
         # Assemble final state vector

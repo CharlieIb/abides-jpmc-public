@@ -42,7 +42,7 @@ def process_trade_data_for_env(
         )
 
         # --- 2. Pre-processing ---
-        print("Converting timestamp from unit 'us' to datetime objects...")
+        print("Converting timestamp from unit 'ms' to datetime objects...")
         df['timestamp'] = pd.to_datetime(df['timestamp'], unit='us', errors='raise')
 
         # Ensure numeric types for calculation

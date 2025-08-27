@@ -129,10 +129,9 @@ class ExchangeAgent(FinancialAgent):
 
     @dataclass
     class TradeDataSubscription(FrequencyBasedSubscription):
-        # --- NEW ---: to handle trade data subscriptions
+        # ----NEW ---: to handle trade data subscriptions
         # This class simply inherits the necessary fields (agent_id, last_update_ts, freq)
-        # It acts as a type markr for our new subscription
-        # last_history_index: int = 0
+        # It acts as a type marker for our new subscription
         pass
 
     @dataclass
@@ -450,9 +449,8 @@ class ExchangeAgent(FinancialAgent):
                 # --- NEW --- : to handle trade data subscriptions
                 elif isinstance(message, TradeDataSubReqMsg):
                     print(f"[{current_time}] Agent {self.id}: Subscribing to exchanges.")
-                    # current_history_len = len(self.order_books[message.symbol].history)
                     sub = self.TradeDataSubscription(
-                        sender_id, current_time, message.freq, # last_history_index=current_history_len
+                        sender_id, current_time, message.freq,
                     )
                 elif isinstance(message, BookImbalanceSubReqMsg):
                     sub = self.BookImbalanceDataSubscription(
@@ -812,6 +810,7 @@ class ExchangeAgent(FinancialAgent):
         elif isinstance(data_sub, self.TradeDataSubscription):
             # print(
             #     f"[{self.current_time}] Exchange {self.id}: STARTING trade data scan for Agent {data_sub.agent_id}.")
+            # Get the new trade events since the last subscription update
             new_trade_events = [
                 event for event in book.history
                 if event['type'] == 'EXEC' and event ['time'] > data_sub.last_update_ts
@@ -819,7 +818,6 @@ class ExchangeAgent(FinancialAgent):
 
             if new_trade_events:
                 # Format the trade data into the simple Dict format for the message
-                #print(new_trade_events)
                 trades_to_send = [
                     {
                         'time': event['time'],
@@ -832,7 +830,7 @@ class ExchangeAgent(FinancialAgent):
                 ]
                 # print(
                 #     f"[{self.current_time}] Exchange {self.id}: FINISHED trade data scan for Agent {data_sub.agent_id}.")
-
+                # Append message to the exchange agents outgoing messages
                 messages.append(
                     TradeDataMsg(
                         symbol,

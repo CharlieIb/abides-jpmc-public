@@ -7,9 +7,26 @@ import zipfile
 
 
 #  Configuration
+# --- MODIFICATION: This is now a list to hold multiple file paths ---
+HISTORICAL_DATA_PATHS = [
+    '/home/charlie/PycharmProjects/ABIDES_GYM_EXT/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/data_analysis/BTCUSDT-trades-2025-07-17.csv'
+    ]
 
-HISTORICAL_DATA_PATH = 'BTCUSDT-trades-2025-07-10.csv'
-#HISTORICAL_DATA_PATH = '/rds/projects/a/aranboll-ai-research/abides_gym_crypto_sim/abides-jpmc-public/gym-crypto-markets/gym_crypto_markets/data/data_extraction/BTCUSDT-trades-2025-05.zip'
+# HISTORICAL_DATA_PATHS = [
+#     'BTCUSDT-trades-2020-01-20.csv',
+#     'BTCUSDT-trades-2020-02-03.csv',
+#     'BTCUSDT-trades-2020-03-01.csv',
+#     'BTCUSDT-trades-2020-03-30.csv',
+#     'BTCUSDT-trades-2020-04-17.csv',
+#     'BTCUSDT-trades-2020-05-11.csv',
+#     'BTCUSDT-trades-2020-05-31.csv',
+#     'BTCUSDT-trades-2020-06-20.csv',
+#     'BTCUSDT-trades-2020-07-10.csv',
+#     'BTCUSDT-trades-2020-07-31.csv',
+#     'BTCUSDT-trades-2020-08-14.csv',
+# ]
+
+# Note: This assumes the CSV file inside any ZIP archive has this name.
 CSV_FILE_IN_ZIP = 'BTCUSDT-trades-2025-05.csv'
 QUANTITY_COLUMN_INDEX = 2
 QUANTITY_COLUMN_NAME = 'quantity'
@@ -18,60 +35,75 @@ NOTIONAL_SCALING_FACTOR = 100000
 
 NOISE_MAX_QTY = 25
 VALUE_MIN_QTY = 100
-MOMENTUM_MIN_QTY = 10
+MOMENTUM_MIN_QTY = 0
 
-# Define categories/bins for trade quantities, adjusted for Bitcoin (fractional quantities).
-# These bins are designed to capture the ranges from very small to larger quantities.
-
+# Define categories/bins for trade quantities
 QUANTITY_BINS = [0, 0.00001, 0.0001, 0.001, 0.01, 0.1, 1, 5, 10, 50, np.inf]
-QUANTITY_LABELS = ['<0.00001(<1)', '0.00001-0.0001(1-10)', '0.0001-0.001(10-100)', '0.001-0.01(100-1000', '0.01-0.1(1000-10000)', '0.1-1(10000-100000)', '1-5', '5-10', '10-50', '50+']
+QUANTITY_LABELS = ['<0.00001(<1)', '0.00001-0.0001(1-10)', '0.0001-0.001(10-100)', '0.001-0.01(100-1000',
+                   '0.01-0.1(1000-10000)', '0.1-1(10000-100000)', '1-5', '5-10', '10-50', '50+']
 
 QUANTITY_BINS_SCALED = [q * NOTIONAL_SCALING_FACTOR for q in QUANTITY_BINS[:-1]] + [np.inf]
 
 
-# Data Loading
-def load_historical_data(file_path: str, csv_in_zip_name: str, column_index: int, column_name: str) -> pd.DataFrame:
+# --- MODIFIED: Data Loading Function ---
+def load_and_combine_historical_data(file_paths: list, csv_in_zip_name: str, column_index: int,
+                                     column_name: str) -> pd.DataFrame:
     """
-    Loads historical trade data from a CSV file.
-    Assumes the file is a CSV. Adjust if your data is in a different format (e.g., Excel, Parquet).
+    Loads and combines historical trade data from multiple CSV or ZIP files.
     """
-    if not os.path.exists(file_path):
-        print(f"Error: Data file not found at {file_path}")
-        print("Please update HISTORICAL_DATA_PATH to the correct location.")
+    all_dataframes = []
+
+    print(f"--- Starting to load {len(file_paths)} data file(s) ---")
+
+    for file_path in file_paths:
+        if not os.path.exists(file_path):
+            print(f"Warning: Data file not found at {file_path}. Skipping.")
+            continue
+
+        try:
+            temp_df = None
+            # Determine if the file is a ZIP archive
+            if file_path.lower().endswith('.zip'):
+                print(f"Detected ZIP file: {file_path}. Reading '{csv_in_zip_name}'...")
+                with zipfile.ZipFile(file_path, 'r') as zf:
+                    if csv_in_zip_name not in zf.namelist():
+                        print(f"Error: '{csv_in_zip_name}' not found inside '{file_path}'. Skipping.")
+                        continue
+                    with zf.open(csv_in_zip_name) as f:
+                        temp_df = pd.read_csv(f, header=None)
+            else:
+                print(f"Detected CSV file: {file_path}. Reading directly...")
+                temp_df = pd.read_csv(file_path, header=None)
+
+            print(f"  > Successfully loaded data from {os.path.basename(file_path)}. Shape: {temp_df.shape}")
+
+            # Check if the specified column index exists
+            if column_index >= temp_df.shape[1]:
+                print(
+                    f"Error: Column index {column_index} is out of bounds for {os.path.basename(file_path)}. Skipping.")
+                continue
+
+            # Rename the specified column
+            temp_df.rename(columns={column_index: column_name}, inplace=True)
+            all_dataframes.append(temp_df)
+
+        except Exception as e:
+            print(f"Error loading data from {file_path}: {e}. Skipping.")
+            continue
+
+    if not all_dataframes:
+        print("\nError: No data could be loaded from any of the provided file paths.")
         return pd.DataFrame()
 
-    try:
-        # Determine if the file is a ZIP archive
-        if file_path.lower().endswith('.zip'):
-            print(f"Detected ZIP file: {file_path}. Attempting to read '{csv_in_zip_name}' from it.")
-            with zipfile.ZipFile(file_path, 'r') as zf:
-                if csv_in_zip_name not in zf.namelist():
-                    print(f"Error: '{csv_in_zip_name}' not found inside '{file_path}'.")
-                    print("Please update CSV_FILE_IN_ZIP to the correct file name within the archive.")
-                    return pd.DataFrame()
-                with zf.open(csv_in_zip_name) as f:
-                    df = pd.read_csv(f, header=None)
-        else:
-            print(f"Detected CSV file: {file_path}. Reading directly.")
-            df = pd.read_csv(file_path, header=None)
+    # Combine all loaded dataframes into one
+    print(f"\n--- Combining {len(all_dataframes)} loaded data file(s) ---")
+    combined_df = pd.concat(all_dataframes, ignore_index=True)
+    print(f"Successfully combined data. Total shape: {combined_df.shape}")
 
-        print(f"Successfully loaded data. Shape: {df.shape}")
+    return combined_df
 
-        # Check if the specified column index exists
-        if column_index >= df.shape[1]:
-            print(
-                f"Error: Column index {column_index} is out of bounds for the loaded data (only {df.shape[1]} columns).")
-            return pd.DataFrame()
 
-        # Rename the specified column to the internal QUANTITY_COLUMN_NAME
-        df.rename(columns={column_index: column_name}, inplace=True)
-
-        return df
-    except Exception as e:
-        print(f"Error loading data: {e}")
-        return pd.DataFrame()
-
-# Data Analysis
+# Data Analysis (No changes needed in this function)
 def analyze_quantities(df: pd.DataFrame, quantity_col: str):
     """
     Performs descriptive statistics and categorization on trade quantities.
@@ -121,22 +153,47 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
     })
     print(category_df)
 
-    # --- NEW ANALYSIS: Find most frequent quantities above a threshold ---
-    print("\n--- Analysis of Most Frequent Trade Quantities (Above 0.0002) ---")
-    min_quantity_threshold = 0.0002
+    # --- NEW ANALYSIS SECTION ---
+    print("\n--- Analysis of Predefined Trade Amount Frequencies ---")
 
-    # Filter the DataFrame based on the original quantity column
-    filtered_df = df[df[quantity_col] > min_quantity_threshold]
+    # Define the specific notional amounts you are interested in
+    target_amounts = [50, 100, 200, 250, 300, 400, 500, 600, 700, 800, 900, 1000, 2000, 5000, 10000]
 
-    if not filtered_df.empty:
-        # Get the value counts of the trade quantities
-        frequent_quantities = filtered_df[quantity_col].value_counts()
+    # Define the percentage range to look around each target amount (e.g., +/- 5%)
+    percentage_range = 0.025
 
-        # Display the top 20 most frequent quantities
-        print(f"Top 20 most frequent trade quantities larger than {min_quantity_threshold}:")
-        print(frequent_quantities.head(20))
+    amount_frequencies = []
+
+    for amount in target_amounts:
+        lower_bound = amount * (1 - percentage_range)
+        upper_bound = amount * (1 + percentage_range)
+
+        # Filter the DataFrame to find trades within this range
+        trades_in_range = df[
+            (df['notional_quantity'] >= lower_bound) &
+            (df['notional_quantity'] <= upper_bound)
+            ]
+
+        count = len(trades_in_range)
+
+        if count > 0:
+            percentage_of_total = (count / len(df)) * 100
+            amount_frequencies.append({
+                'Target Amount': amount,
+                'Range (Notional)': f"{lower_bound:.2f} - {upper_bound:.2f}",
+                'Frequency (Count)': count,
+                'Percentage of Total Trades': f"{percentage_of_total:.4f}%"
+            })
+
+    if amount_frequencies:
+        # Create a DataFrame from the results and sort by frequency
+        freq_df = pd.DataFrame(amount_frequencies)
+        freq_df.sort_values(by='Frequency (Count)', ascending=False, inplace=True)
+
+        print(f"Frequencies of trades around target amounts (within a +/- {percentage_range * 100}% range):")
+        print(freq_df.to_string(index=False))
     else:
-        print(f"No trades found with a quantity greater than {min_quantity_threshold}.")
+        print("No trades found around the specified target amounts.")
 
     print("\n--- Inferring Agent Trade Types and Analyzing Filtered Quantities ---")
 
@@ -231,46 +288,19 @@ def analyze_quantities(df: pd.DataFrame, quantity_col: str):
     print(
         f"\nTotal trades found in all specified clusters: {total_trades_in_clusters} ({total_trades_in_clusters / len(df) * 100:.4f}% of total).")
 
-    # Visualization
-    print("\nGenerating visualizations...")
-
-    plt.style.use('seaborn-darkgrid')
-    sns.set_palette('viridis')
-
-    # Histogram of notional quantities with logarithmic x-axis
-    plt.figure(figsize=(12, 6))
-    positive_quantities = df[df['notional_quantity'] > 0]['notional_quantity']
-    if not positive_quantities.empty:
-        sns.histplot(positive_quantities, bins=50, kde=True, log_scale=True)
-        plt.xscale('log')
-        plt.title(
-            f'Distribution of Historical Notional Trade Quantities (Bitcoin, Scaled by {NOTIONAL_SCALING_FACTOR}, Log Scale)')
-        plt.xlabel('Notional Quantity (Log Scale)')
-        plt.ylabel('Frequency')
-        plt.tight_layout()
-        plt.show()
-    else:
-        print("  No positive quantities to plot histogram on log scale.")
-
-    # Bar chart of categorized quantities
-    plt.figure(figsize=(14, 7))
-    sns.barplot(x=category_df.index, y=category_df['Percentage'], palette='coolwarm')
-    plt.title(
-        f'Percentage Distribution of Notional Trade Quantities by Category (Bitcoin, Scaled by {NOTIONAL_SCALING_FACTOR})')
-    plt.xlabel('Notional Quantity Category')
-    plt.ylabel('Percentage (%)')
-    plt.xticks(rotation=45, ha='right')
-    plt.tight_layout()
-    plt.show()
-
     print("\nAnalysis complete. Use these insights to refine your OrderSizeModel.")
 
 
-# Main Execution
+# --- MODIFIED: Main Execution ---
 if __name__ == "__main__":
-    historical_trades_df = load_historical_data(HISTORICAL_DATA_PATH, None, QUANTITY_COLUMN_INDEX,
-                                                QUANTITY_COLUMN_NAME)
+    # Call the new function with the list of paths
+    combined_trades_df = load_and_combine_historical_data(
+        HISTORICAL_DATA_PATHS,
+        CSV_FILE_IN_ZIP,
+        QUANTITY_COLUMN_INDEX,
+        QUANTITY_COLUMN_NAME
+    )
 
-    if not historical_trades_df.empty:
-        analyze_quantities(historical_trades_df, QUANTITY_COLUMN_NAME)
-
+    # The rest of the script runs on the combined DataFrame
+    if not combined_trades_df.empty:
+        analyze_quantities(combined_trades_df, QUANTITY_COLUMN_NAME)

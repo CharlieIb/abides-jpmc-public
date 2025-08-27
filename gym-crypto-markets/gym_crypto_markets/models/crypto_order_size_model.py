@@ -23,8 +23,8 @@ from pomegranate import GeneralMixtureModel
 # modelled with higher log mean and std to ignore the very very low values in the data
 # most of their trades will be block orders order higher amounts
 
-NOISE_LOG_NORMAL_MEAN_SCALED = 2.8871
-NOISE_LOG_NORMAL_STD_SCALED = 1.9939
+NOISE_LOG_NORMAL_MEAN_SCALED = 3.1
+NOISE_LOG_NORMAL_STD_SCALED = 2.1
 
 VM_LOG_NORMAL_MEAN_SCALED = 4.8073
 VM_LOG_NORMAL_STD_SCALED = 2.050

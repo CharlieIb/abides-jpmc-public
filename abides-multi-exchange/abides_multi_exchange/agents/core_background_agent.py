@@ -160,8 +160,8 @@ class CoreBackgroundAgent(TradingAgent):
                     # print(message.trades)
                     # print(f"BEFORE: {self.parsed_trade_data_buffer}")
                     self.parsed_trade_data_buffer.extend(message.trades)
-#                     print(f"AFTER: {self.parsed_trade_data_buffer}")
-
+                    # print(f"AFTER: {self.parsed_trade_data_buffer}")
+                    # ddd
 
     def get_wake_frequency(self) -> NanosecondTime:
         """
