@@ -71,6 +71,40 @@ class HistoricalTradingEnv_v02(gym.Env):
         self.pending_transfers = []
 
 
+    # def _load_data(self, data_paths: List[str]):
+    #     """
+    #     Loads and aligns historical data for multiple exchanges.
+    #     with at least the following columns: 'timestamp', 'price', 'volume', 'vwap', 'buy_volume'.
+    #     """
+    #
+    #     if not data_paths or not isinstance(data_paths, list):
+    #         raise ValueError("Historical environment requires a list of 'data_paths' to be provided.")
+    #     print(data_paths, self.num_exchanges)
+    #     assert len(data_paths) == self.num_exchanges, \
+    #         "The number of data paths provided does not match num_exchange_agents in the config."
+    #
+    #     self.dfs = []
+    #     for path in data_paths:
+    #         print(f"Loading historical data from: {path}")
+    #         df = pd.read_csv(path)
+    #         df['timestamp'] = pd.to_datetime(df['timestamp'])
+    #         df.set_index('timestamp', inplace=True)
+    #         self.dfs.append(df)
+    #
+    #     # Align all dataframes to a common index to handle missing data points.
+    #     master_index = self.dfs[0].index
+    #     for df in self.dfs[1:]:
+    #         master_index = master_index.union(df.index)
+    #
+    #     aligned_dfs = []
+    #     for df in self.dfs:
+    #         # Reindex and fill any missing values from the previous valid observation.
+    #         aligned_dfs.append(df.reindex(master_index).ffill().bfill())
+    #
+    #     self.dfs = aligned_dfs
+    #     self.max_steps = len(master_index)
+    #     print(f"Loaded and aligned data for {self.num_exchanges} exchanges with {self.max_steps} steps.")
+
     def _load_data(self, data_paths: List[str]):
         """
         Loads and aligns historical data for multiple exchanges.
@@ -84,10 +118,25 @@ class HistoricalTradingEnv_v02(gym.Env):
             "The number of data paths provided does not match num_exchange_agents in the config."
 
         self.dfs = []
-        for path in data_paths:
+        # Use enumerate to get the index (i) of each path
+        for i, path in enumerate(data_paths):
             print(f"Loading historical data from: {path}")
             df = pd.read_csv(path)
             df['timestamp'] = pd.to_datetime(df['timestamp'])
+
+            # --- DATA CORRECTION LOGIC ---
+            # Check if this is the second data path (index 1)
+            if i == 1:
+                print("  [INFO] Applying price correction (x100) to the second data source.")
+                # Define the columns that represent prices and need correction
+                price_columns_to_correct = ['price', 'vwap']
+                for col in price_columns_to_correct:
+                    if col in df.columns:
+                        df[col] *= 100
+                    else:
+                        # Add a warning if a column to correct isn't found
+                        print(f"  [WARNING] Column '{col}' not found for price correction in {path}.")
+
             df.set_index('timestamp', inplace=True)
             self.dfs.append(df)
 
@@ -236,9 +285,6 @@ class HistoricalTradingEnv_v02(gym.Env):
                 #     print(
                 #         f"--- Step {self.current_step}: Initiated transfer of {trade_size} shares from E{from_exchange} to E{to_exchange}. ETA: Step {completion_step}. ---")
 
-        # Advance the market
-        self.current_step += 1
-        done = self.current_step >= self.max_steps - 1
 
         current_prices = [df.iloc[self.current_step]['price'] for df in self.dfs]
         price_map = {i: price for i, price in enumerate(current_prices)}
@@ -263,8 +309,14 @@ class HistoricalTradingEnv_v02(gym.Env):
             # Normalize the reward, just like in the ABIDES environment.
             if self.latest_marked_to_market > 0:
                 reward = reward / self.latest_marked_to_market
+
+            REWARD_SCALING_FACTOR = 10000
+            reward *= REWARD_SCALING_FACTOR
             # Update the previous value for the next step.
             self.latest_marked_to_market = current_portfolio_value
+
+        self.current_step += 1
+        done = self.current_step >= self.max_steps - 1
 
         # Calculate the sparse reward at the end of the episode (if applicable).
         if done and self.reward_mode == "sparse":
@@ -386,7 +438,7 @@ class HistoricalTradingEnv_v02(gym.Env):
         """Returns diagnostic information, including pending transfers."""
         if not self.debug_mode: return {}
 
-        current_prices = {f'price_ex_{i}': df.iloc[self.current_step]['price'] for i, df in enumerate(self.dfs)}
+        current_prices = {i: {"last_transaction" : df.iloc[self.current_step]['price']} for i, df in enumerate(self.dfs)}
 
         info_dict = {
             'step': self.current_step,
@@ -396,5 +448,6 @@ class HistoricalTradingEnv_v02(gym.Env):
             'true_marked_to_market': self.latest_marked_to_market,
             'pending_transfers': self.pending_transfers  # Add this for debugging
         }
-        info_dict.update(current_prices)
+        market_data = {"market_data": current_prices}
+        info_dict.update(market_data)
         return info_dict

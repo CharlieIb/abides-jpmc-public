@@ -4,7 +4,7 @@ background_config_params:
   end_time: "23:59:59"
   stdout_log_level: "INFO"
   ticker: "ABM"
-  starting_cash: 1000000000000000  # Cash in this simulator is always in CENTS.
+  starting_cash: 100000000000  # Cash in this simulator is always in CENTS.
   order_size_model_type: 'simple'  # Is the phenomenon you are researching defined by the noise ('realistic') or not('simple').
                                       # NOTE: realism will require an increase in noise agents, this will be computationally taxing
 
@@ -186,7 +186,7 @@ agent_configurations:
 
 
 simulation_runner:
-  num_episodes: 9
+  num_episodes: 60
   max_episode_steps: 3000
   save_weights:
     enabled: True
